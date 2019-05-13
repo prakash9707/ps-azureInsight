@@ -1,0 +1,65 @@
+{
+    "name": "PS-AzureInsights",
+    "description": "",
+    "services": [
+        {
+            "type": "abs",
+            "tenantId": "97a80a72-fec2-4577-81ad-2da2880ff7bb",
+            "subscriptionId": "98846a4a-670c-426e-beac-362d79862397",
+            "resourceGroup": "Cost",
+            "serviceName": "PS-AzureInsights",
+            "name": "PS-AzureInsights",
+            "id": "1",
+            "appId": "4e59b766-3246-499c-8fa4-75bf00581a19"
+        },
+        {
+            "type": "blob",
+            "connectionString": "DefaultEndpointsProtocol=https;AccountName=psazureinsights9e99;AccountKey=L/F7vBNX3XvFYK5z+QG4oVT3ndJMcJtSSmmEJsjiIK7ySYJurKRDbXCmUqgbttA0WEqjt9iXWeRAgQm338W1fA==;",
+            "tenantId": "97a80a72-fec2-4577-81ad-2da2880ff7bb",
+            "subscriptionId": "98846a4a-670c-426e-beac-362d79862397",
+            "resourceGroup": "Cost",
+            "serviceName": "psazureinsights9e99",
+            "id": "2"
+        },
+        {
+            "type": "endpoint",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:3978/api/messages",
+            "name": "development",
+            "id": "3"
+        },
+        {
+            "type": "endpoint",
+            "appId": "4e59b766-3246-499c-8fa4-75bf00581a19",
+            "appPassword": "eaecELPF009]!aolFFQ85~)",
+            "endpoint": "https://ps-azureinsights.azurewebsites.net/api/messages",
+            "name": "production",
+            "id": "4"
+        },
+        {
+            "type": "appInsights",
+            "instrumentationKey": "9606ebb2-a189-4a77-a4ec-9d4bf54e123b",
+            "applicationId": "6e295eaa-98df-43fb-b809-fc0d008954c2",
+            "apiKeys": {},
+            "tenantId": "97a80a72-fec2-4577-81ad-2da2880ff7bb",
+            "subscriptionId": "98846a4a-670c-426e-beac-362d79862397",
+            "resourceGroup": "Cost",
+            "serviceName": "PS-AzureInsightstifcyj",
+            "id": "5"
+        },
+        {
+            "type": "luis",
+            "appId": "e2955a45-07a4-44f6-8274-c10f3d3a5bd9",
+            "authoringKey": "9d7e14f266ad4a448b0fb96e57353517",
+            "version": "0.1",
+            "region": "westus",
+            "name": "BasicBotLuisApplication",
+            "id": "6"
+        }
+    ],
+    "padlock": "",
+    "version": "2.0",
+    "overrides": null,
+    "path": "C:\\Users\\Lenovo\\Desktop\\Azure demo\\PS-AzureInsight\\Azure.bot"
+}
