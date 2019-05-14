@@ -33,18 +33,18 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
     else {
         try {
             if ((req.body).hasOwnProperty('filteredData') && (req.body.filteredData).hasOwnProperty('filter') && (req.body.filteredData).hasOwnProperty('dateRange') && (req.body.filteredData).hasOwnProperty('intent')) {
-                if (req.body.filteredData.intent === "trend" && req.body.filteredData.QueryBy === "billingPeriod") {
+                if (req.body.filteredData.intent === "trend" && req.body.filteredData.queryBy === "billingPeriod") {
                     url = azuresubs.generateAzureAPI(req.body);
-                    logger.info("url" + url);
+                    logger.info("url  " + url);
                     subsData = yield azuresubs.getAzureUsageDetails(url);
-                    let dates = parsingAzureDataObj.findDatesFromBillingPeriodForTrend(subsData, req.body.filteredData.DateRange);
-                    req.body.filteredData.DateRange = dates['dateRange'];
-                    req.body.filteredData.MidRange = dates['midRange'];
-                    req.body.filteredData.QueryBy = "userChoice";
+                    let dates = parsingAzureDataObj.findDatesFromBillingPeriodForTrend(subsData, req.body.filteredData.dateRange);
+                    req.body.filteredData.dateRange = dates['dateRange'];
+                    req.body.filteredData.midRange = dates['midRange'];
+                    req.body.filteredData.queryBy = "userChoice";
                     logger.info("In config " + dates);
                     url = azuresubs.generateAzureAPI(req.body);
                 }
-                else if (req.body.filteredData.intent === "cost" && req.body.filteredData.QueryBy == "billingPeriod") {
+                else if (req.body.filteredData.intent === "cost" && req.body.filteredData.queryBy == "billingPeriod") {
                     if (req.body.filteredData.dateRange != "currentPeriod") {
                         url = azuresubs.generateAzureAPI(req.body);
                         subsData = yield azuresubs.getAzureUsageDetails(url);
@@ -87,8 +87,8 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                         data = parsingAzureDataObj.findDates(subsData);
                     }
                 }
-                else if (req.body.filteredData.Intent == "usageQuantity") {
-                    if (req.body.filteredData.Resources === resourceGroup)
+                else if (req.body.filteredData.intent == "usageQuantity") {
+                    if (req.body.filteredData.resources === resourceGroup)
                         data = parsingAzureDataObj.FindUsageQuantity(subsData);
                     else {
                         data = parsingAzureDataObj.FindUsageQuantityForResourceType(subsData);

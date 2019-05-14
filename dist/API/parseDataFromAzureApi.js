@@ -70,7 +70,6 @@ class ParsingAzureData {
                 for (let itr = 0; itr < total_records; itr++) {
                     if (itr == 0) {
                         currencyUsed = azureData.value[itr].properties.currency;
-                        startDate = moment((azureData.value[itr].properties.usageStart).slice(0, 10));
                     }
                     if (meterCategory.hasOwnProperty(azureData.value[itr].properties.instanceName)) {
                         let temp_instance_name = azureData.value[itr].properties.instanceName;
@@ -86,8 +85,6 @@ class ParsingAzureData {
                         meterCategory[azureData.value[itr].properties.instanceName] = {};
                         itr--;
                     }
-                    if (itr === total_records - 1)
-                        endDate = moment((azureData.value[itr].properties.usageStart).slice(0, 10));
                 }
             }
             catch (e) {
@@ -108,6 +105,11 @@ class ParsingAzureData {
             for (let i = 0; i < resourcegroupSorted.length; i++) {
                 resourcetypeResult[resourcegroupSorted[i]] = meterCategory[resourcegroupSorted[i]];
             }
+            let usageDates = azureData['value'].map(function (data) {
+                return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
+            });
+            startDate = moment.min(usageDates);
+            endDate = moment.max(usageDates);
             let keysSorted = Object.keys(resourcetypeResult).sort(function (a, b) { return resourcetypeResult[b] - resourcetypeResult[a]; });
             resourcetypeResult['keys'] = keysSorted;
             resourcetypeResult['totalCost'] = totalCost;
@@ -189,8 +191,8 @@ class ParsingAzureData {
             endDate = moment.max(usageDates);
             date = moment(date, "YYYY-MM-DD");
             date = date.subtract(1, 'day');
-            result['OldDate'] = `${startDate.format("YYYY-MM-DD")} to ${date.format("YYYY-MM-DD")}`;
-            result['CurrentDate'] = `${date.add(1, 'day').format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
+            result['oldDate'] = `${startDate.format("YYYY-MM-DD")} to ${date.format("YYYY-MM-DD")}`;
+            result['currentDate'] = `${date.add(1, 'day').format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
             return result;
         }
         catch (e) {
@@ -218,10 +220,16 @@ class ParsingAzureData {
                 }
             }
         }
+        let usageDates = azureData['value'].map(function (data) {
+            return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
+        });
+        let startDate = moment.min(usageDates);
+        let endDate = moment.max(usageDates);
         let keysSorted = Object.keys(breakdown).sort(function (a, b) { return breakdown[b] - breakdown[a]; });
         breakdown['keys'] = keysSorted;
         breakdown['totalCost'] = totalCost;
         breakdown['currency'] = currencyUsed;
+        breakdown['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
         return breakdown;
     }
     findDatesFromBillingPeriod(azureData, date) {
@@ -241,14 +249,14 @@ class ParsingAzureData {
     }
     findDatesFromBillingPeriodForTrend(azureData, date) {
         let result = {
-            "DateRange": null,
-            "MidRange": null
+            "dateRange": null,
+            "midRange": null
         };
         let totalRecords = azureData['value'].length;
-        if (date === "CurrentPeriod" && totalRecords > 1) {
+        if (date === "currentPeriod" && totalRecords > 1) {
             let end = moment(azureData['value'][0]['properties']['billingPeriodEndDate'], "YYYY-MM-DD");
-            result['DateRange'] = `${azureData['value'][1]['properties']['billingPeriodStartDate']} to ${end.format("YYYY-MM-DD")}`;
-            result['MidRange'] = azureData['value'][0]['properties']['billingPeriodStartDate'];
+            result['dateRange'] = `${azureData['value'][1]['properties']['billingPeriodStartDate']} to ${end.format("YYYY-MM-DD")}`;
+            result['midRange'] = azureData['value'][0]['properties']['billingPeriodStartDate'];
             return result;
         }
         else {
@@ -263,8 +271,8 @@ class ParsingAzureData {
                 if (moment(startDate).isAfter(start)) {
                     if (idx !== totalRecords - 1) {
                         let end = moment(azureData['value'][idx]['properties']['billingPeriodEndDate'], "YYYY-MM-DD");
-                        result['DateRange'] = `${azureData['value'][idx + 1]['properties']['billingPeriodStartDate']} to ${end.format("YYYY-MM-DD")}`;
-                        result['MidRange'] = azureData['value'][idx]['properties']['billingPeriodStartDate'];
+                        result['dateRange'] = `${azureData['value'][idx + 1]['properties']['billingPeriodStartDate']} to ${end.format("YYYY-MM-DD")}`;
+                        result['midRange'] = azureData['value'][idx]['properties']['billingPeriodStartDate'];
                         return result;
                     }
                 }

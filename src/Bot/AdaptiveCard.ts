@@ -208,6 +208,7 @@ export class AdaptiveCard {
      resourcetypeData(result: any): any {
     
         let currency: string = result['currency'];
+        
         let data = [{
             "type": "ColumnSet",
             "columns": [

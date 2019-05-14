@@ -115,33 +115,18 @@ class AzureUsageBot {
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].resources = step.result.value;
                 console.log(filter['filterData']);
-                if (filter['filterData']['queryBy'] === "billingPeriod") {
-                    billingDates = yield callapi_1.callApi(filter['filterData']);
-                    if (billingDates) {
-                        billingDates = billingDates.split('to');
-                        filter['filterData']['queryBy'] = "userChoice";
-                        filter['filterData']['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
-                    }
-                    else {
-                        yield step.context.sendActivity('No data was found');
-                    }
-                }
                 let usageCost = yield callapi_1.callApi(filter['filterData']);
                 let tempCost = yield this.userCost.get(step.context, {});
                 tempCost.cost = usageCost;
                 yield this.userCost.set(step.context, tempCost);
-                if (usageCost['resource']['keys'].length > 0) {
-                    if (usageCost['resource'][usageCost['resource']['keys'][0]] >= 1) {
-                        let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resource'], filter['filterData'].resources, usageCost['resource']['keys'].length);
-                        yield this.createApativeCard(step.context, cardBody, usageCost['resource']['usageDate']);
-                        const dialogControl = yield this.dialogs.createContext(step.context);
-                        yield dialogControl.beginDialog(breakDownForCost);
-                    }
-                    else
-                        yield step.context.sendActivity('Your usage cost does not even crossed a rupee!');
+                if (usageCost['resourceGroup']['keys'].length > 0) {
+                    let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
+                    yield this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
+                    const dialogControl = yield this.dialogs.createContext(step.context);
+                    yield dialogControl.beginDialog(breakDownForCost);
                 }
                 else
-                    yield step.context.sendActivity('Sorry no matched data was found');
+                    yield step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
             }
         });
     }
@@ -194,13 +179,13 @@ class AzureUsageBot {
             let usageCost = yield this.userCost.get(step.context, {});
             if (step.result) {
                 if (step.result.value === "Dates") {
-                    console.log(usageCost['cost']['breakDownByDates']);
-                    let cardBody = adaptiveCardObject.DatesBreakdown(usageCost['cost']['breakDownByDates']);
-                    yield this.createApativeCard(step.context, cardBody, usageCost['cost']['breakDownByDates']['usageDate']);
+                    console.log(usageCost['dates']);
+                    let cardBody = adaptiveCardObject.DatesBreakdown(usageCost['cost']['dates']);
+                    yield this.createApativeCard(step.context, cardBody, usageCost['cost']['dates']['usageDate']);
                 }
                 else if (step.result.value === "ResourceType") {
-                    let cardBody = adaptiveCardObject.resourcetypeData(usageCost['cost']['breakDownByResourceType']);
-                    yield this.createApativeCard(step.context, cardBody, usageCost['cost']['breakDownByResourceType']['usageDate']);
+                    let cardBody = adaptiveCardObject.resourcetypeData(usageCost['cost']['resourceType']);
+                    yield this.createApativeCard(step.context, cardBody, usageCost['cost']['resourceType']['usageDate']);
                 }
                 else if (step.result.value === "Display Chart") {
                     yield step.context.sendActivity("Currently not available");
@@ -306,12 +291,11 @@ class AzureUsageBot {
                                 else
                                     resources = "resourceType";
                                 usageCost = yield callapi_1.callApi(filterData);
-                                console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", usageCost);
                                 let tempCost = yield this.userCost.get(context, {});
                                 tempCost.cost = usageCost;
                                 yield this.userCost.set(context, tempCost);
                                 if (usageCost['resourceGroup']['keys'].length > 0) {
-                                    let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], resources, usageCost['resource']['keys'].length);
+                                    let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], resources, usageCost['resourceGroup']['keys'].length);
                                     yield this.createApativeCard(context, cardBody, usageCost['resourceGroup']['usageDate']);
                                     yield dialogControl.beginDialog(breakDownForCost);
                                 }
@@ -353,19 +337,8 @@ class AzureUsageBot {
                         case trend:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
-                            if (filterData['queryBy'] === "billingPeriod") {
-                                billingDates = yield callapi_1.callApi(filterData);
-                                if (billingDates) {
-                                    filterData['queryBy'] = "userChoice";
-                                    filterData['dateRange'] = `${billingDates.startDate} to ${billingDates.endDate}`;
-                                    filterData['midRange'] = billingDates.midDate;
-                                }
-                                else {
-                                    yield context.sendActivity('No data was found');
-                                    break;
-                                }
-                            }
                             usageCost = yield callapi_1.callApi(filterData);
+                            console.log(usageCost);
                             if (usageCost['currentKeys'].length > 0) {
                                 if (usageCost['current'][usageCost['currentKeys'][0]] >= 1) {
                                     let cardBody = adaptiveCardObject.adaptiveCardForTrend(usageCost, usageCost['currentKeys']);
