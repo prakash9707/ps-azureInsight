@@ -135,7 +135,7 @@ export class AzureUsageBot {
         await step.context.sendActivity({ attachments: [heroCardObject.HeroCardForSubscriptionId(subscriptionList)] });
     }
     async captureSubscription(step: any) {
-        config.userDetails.subscriptionId = step.result;
+        config.userDetails.subscriptionId = step.result.value;
         let dialogControl: any = await this.dialogs.createContext(step.context);
         await dialogControl.beginDialog(welcomeMessage);
         
@@ -186,7 +186,6 @@ export class AzureUsageBot {
     async getResource(step: any) {
         if (step.result && step.result.value) {
             const dialogControl = await this.dialogs.createContext(step.context);
-            let billingDates: any;
             let filter: any = await this.filterForPrompt.get(step.context, {});
             filter['filterData'].resources = step.result.value;
             console.log(filter['filterData']);
@@ -195,7 +194,7 @@ export class AzureUsageBot {
             //     if (billingDates) {
             //         billingDates = billingDates.split('to');
             //         filter['filterData']['queryBy'] = "userChoice";
-            //         filter['filterData']['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
+            //         filter['filterData']['dateRange'] = ${billingDates[0]} to ${billingDates[1]};
             //     }
             //     else {
             //         await step.context.sendActivity('No data was found');
@@ -210,7 +209,9 @@ export class AzureUsageBot {
             else {
                 let tempCost = await this.userCost.get(step.context, {});
                 tempCost.cost = usageCost;
+                console.log("usagecost",usageCost);
                 await this.userCost.set(step.context, tempCost);
+                if (step.result.value === "resourceGroup"){
                 if (usageCost['resourceGroup']['keys'].length > 0) {
 
                     let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
@@ -221,6 +222,18 @@ export class AzureUsageBot {
                 else
                     await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
             }
+        
+        else{
+            if (usageCost['keys'].length > 0){
+                let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost, filter['filterData'].resources, usageCost['keys'].length);
+                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+            }
+            else
+                    await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
+        
+
+        }
+    }
         }
 
     }
