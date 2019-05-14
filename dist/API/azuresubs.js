@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const msRestAzure = require("ms-rest-azure");
+const request = require("request");
 const logger = require("../logger");
-const subscriptionId = '98846a4a-670c-426e-beac-362d79862397';
 const config = require("../../config/default.json");
 const moment = require("moment");
-class AZUREUsageDetails {
+class AzureUsageDetails {
     generateAzureAPI(filterData) {
         try {
+            const subscriptionId = config.userDetails.subscriptionId;
             let filterquery = null;
             if (filterData.hasOwnProperty('filteredData') && filterData['filteredData'].hasOwnProperty('intent') && filterData['filteredData'].hasOwnProperty('filter') && filterData['filteredData'].hasOwnProperty('dateRange')) {
                 let filterLength = filterData['filteredData']['filter'].length;
@@ -48,31 +49,27 @@ class AZUREUsageDetails {
     }
     getAzureUsageDetails(currentUrl) {
         try {
-            return new Promise(function (resolve, reject) {
-                const AzureServiceClient = msRestAzure.AzureServiceClient;
-                const clientId = '4d689e3d-f9a8-4863-8845-cf4e7adfa421';
-                const secret = 'f2167dc2-b08a-4d7b-a21a-a1d90912de86';
-                const domain = '97a80a72-fec2-4577-81ad-2da2880ff7bb';
-                msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain).then((creds) => {
-                    var client = new AzureServiceClient(creds);
-                    let options = {
-                        method: 'GET',
-                        url: currentUrl,
-                        headers: {
-                            'user-agent': 'MyTestApp/1.0'
-                        }
-                    };
-                    return client.sendRequest(options);
-                }).then((result) => {
-                    resolve(result);
-                }).catch((err) => {
-                    reject(err);
+            return new Promise((resolve, reject) => {
+                request.get({
+                    url: currentUrl,
+                    headers: {
+                        "Authorization": "Bearer " + config.userDetails.userToken
+                    }
+                }, function (err, response, body) {
+                    if (err)
+                        reject(err);
+                    else if (body && response.statusCode === 200) {
+                        resolve(JSON.parse(body));
+                    }
+                    else if (body && response.statusCode === 401 && body.hasOwnProperty('error')) {
+                        resolve({ "error": "Token expired" });
+                    }
                 });
             });
         }
-        catch (err) {
-            logger.error(err + "occurs on getting data from azure api");
+        catch (error) {
+            console.log(error + " get error in get user details");
         }
     }
 }
-exports.AZUREUsageDetails = AZUREUsageDetails;
+exports.AzureUsageDetails = AzureUsageDetails;

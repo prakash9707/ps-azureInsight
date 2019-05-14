@@ -1,19 +1,13 @@
 {
-    "MongoDb":{
-        "ConnectionName":"mongodb://localhost:27017/azureInsights",
-        "DatabaseName":"PSAzureInsights",
-        "CollectionsNames":{
-            "UsageDetails":"usageDetails",
-            "BillingDetails":"billingDetails"
-        }
-    },
+    
     "luis":{
         "endPoint":"https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/",
         "luisAppId":"6c51a37b-6128-436a-9b43-6edde939521a",
         "endPointKey":"27235cc25364488d89c95ce00163eec1"
     },
     "userDetails":{
-        "subscriptionId":""
+        "subscriptionId":null,
+        "userToken":null
     },
     "serverconf":{
         "port":3000

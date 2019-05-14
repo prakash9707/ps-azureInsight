@@ -13,6 +13,18 @@ class HeroCard {
         }
         return botbuilder_1.CardFactory.heroCard('', botbuilder_1.CardFactory.images(['']), botbuilder_1.CardFactory.actions(cardArray));
     }
+    HeroCardForSubscriptionId(result) {
+        let cardArray = [];
+        console.log(result);
+        for (let idx = 0; idx < result.length; idx++) {
+            cardArray.push({
+                "type": "imBack",
+                "title": result[idx]['subscriptionName'],
+                "value": result[idx]['subscriptionId']
+            });
+        }
+        return botbuilder_1.CardFactory.heroCard('', botbuilder_1.CardFactory.images(['']), botbuilder_1.CardFactory.actions(cardArray));
+    }
     HeroCardForWelcomeMessage() {
         return botbuilder_1.CardFactory.heroCard('Welcome to Azure Cost Bot', botbuilder_1.CardFactory.images(['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Microsoft_Azure_Logo.svg/2000px-Microsoft_Azure_Logo.svg.png']), botbuilder_1.CardFactory.actions([
             {

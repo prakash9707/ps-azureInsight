@@ -17,6 +17,24 @@ export class HeroCard{
         );
     }
 
+    HeroCardForSubscriptionId(result : any) : Attachment {
+        
+        let cardArray : Array<any> = [];
+        console.log(result);
+        for (let idx : number = 0; idx < result.length; idx ++){
+            cardArray.push({
+                "type":"imBack",
+                "title": result[idx]['subscriptionName'],
+                "value": result[idx]['subscriptionId']
+            })
+        }
+        return CardFactory.heroCard(
+            '',
+            CardFactory.images(['']),
+            CardFactory.actions(cardArray)
+        );
+    }
+
     HeroCardForWelcomeMessage() : Attachment {
         return CardFactory.heroCard(
             'Welcome to Azure Cost Bot',

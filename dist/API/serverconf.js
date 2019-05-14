@@ -14,7 +14,7 @@ const logger = require('../logger');
 const azuresubs_1 = require("../API/azuresubs");
 const parseDataFromAzureApi_1 = require("../API/parseDataFromAzureApi");
 const config = require("../../config/default.json");
-const azuresubs = new azuresubs_1.AZUREUsageDetails();
+const azuresubs = new azuresubs_1.AzureUsageDetails();
 const parsingAzureDataObj = new parseDataFromAzureApi_1.ParsingAzureData();
 const resourceGroup = 'resourceGroup';
 const resourceType = 'resourceType';
@@ -37,6 +37,9 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                     url = azuresubs.generateAzureAPI(req.body);
                     logger.info("url  " + url);
                     subsData = yield azuresubs.getAzureUsageDetails(url);
+                    if (subsData.hasOwnProperty('error')) {
+                        res.send(401, subsData);
+                    }
                     let dates = parsingAzureDataObj.findDatesFromBillingPeriodForTrend(subsData, req.body.filteredData.dateRange);
                     req.body.filteredData.dateRange = dates['dateRange'];
                     req.body.filteredData.midRange = dates['midRange'];
@@ -48,6 +51,9 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                     if (req.body.filteredData.dateRange != "currentPeriod") {
                         url = azuresubs.generateAzureAPI(req.body);
                         subsData = yield azuresubs.getAzureUsageDetails(url);
+                        if (subsData.hasOwnProperty('error')) {
+                            res.send(401, subsData);
+                        }
                         let billingPeriodDate = parsingAzureDataObj.findDatesFromBillingPeriod(subsData, req.body.filteredData.dateRange);
                         req.body.filteredData.dateRange = billingPeriodDate;
                         req.body.filteredData.queryBy = "userChoice";
@@ -62,6 +68,9 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                 }
                 logger.info("API " + url);
                 subsData = yield azuresubs.getAzureUsageDetails(url);
+                if (subsData.hasOwnProperty('error')) {
+                    res.send(401, subsData);
+                }
                 let data = {};
                 if (req.body.filteredData.intent == "cost" && req.body.filteredData.resources == resourceGroup) {
                     data['resourceGroup'] = parsingAzureDataObj.findCost(subsData);

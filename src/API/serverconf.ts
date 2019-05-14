@@ -1,10 +1,10 @@
 const restify = require('restify');
 const restifyErrors = require('restify-errors');
 const logger = require('../logger');
-import { AZUREUsageDetails } from "../API/azuresubs";
+import { AzureUsageDetails } from "../API/azuresubs";
 import { ParsingAzureData } from "../API/parseDataFromAzureApi";
 const config = require("../../config/default.json");
-const azuresubs = new AZUREUsageDetails();
+const azuresubs = new AzureUsageDetails();
 const parsingAzureDataObj = new ParsingAzureData();
 const resourceGroup = 'resourceGroup';
 const resourceType = 'resourceType';
@@ -33,6 +33,9 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                     url = azuresubs.generateAzureAPI(req.body);
                     logger.info("url  " + url);
                     subsData = await azuresubs.getAzureUsageDetails(url);
+                    if (subsData.hasOwnProperty('error')){
+                        res.send(401, subsData);
+                    }
                     let dates = parsingAzureDataObj.findDatesFromBillingPeriodForTrend(subsData, req.body.filteredData.dateRange);
                     req.body.filteredData.dateRange = dates['dateRange'];
                     req.body.filteredData.midRange = dates['midRange'];
@@ -46,6 +49,9 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                     if (req.body.filteredData.dateRange != "currentPeriod") {
                         url = azuresubs.generateAzureAPI(req.body);
                         subsData = await azuresubs.getAzureUsageDetails(url);
+                        if (subsData.hasOwnProperty('error')){
+                            res.send(401, subsData);
+                        }
                         let billingPeriodDate = parsingAzureDataObj.findDatesFromBillingPeriod(subsData, req.body.filteredData.dateRange);
                         req.body.filteredData.dateRange = billingPeriodDate;
                         req.body.filteredData.queryBy = "userChoice";
@@ -63,6 +69,9 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                 
                 logger.info("API "+ url);
                 subsData = await azuresubs.getAzureUsageDetails(url);
+                if (subsData.hasOwnProperty('error')){
+                    res.send(401, subsData);
+                }
                 //console.log("azure data", subsData);
                 let data: any = {};
 

@@ -17,6 +17,7 @@ const callapi_1 = require("../API/callapi");
 const jwtDecode = require("jwt-decode");
 const AdaptiveCard_1 = require("./AdaptiveCard");
 const HeroCard_1 = require("./HeroCard");
+const azuresubs_1 = require("../API/azuresubs");
 const dialogStateProperty = "dialogStateProperty";
 const confirmPrompt = "confirmPrompt";
 const config = require('../../config/default.json');
@@ -32,10 +33,11 @@ const billingPeriod = "billingPeriod";
 const heroCardObject = new HeroCard_1.HeroCard();
 const adaptiveCardObject = new AdaptiveCard_1.AdaptiveCard();
 const OAUTH_PROMPT = 'oAuth_prompt';
-let userLoginToken = null;
+const subcriptionDialog = 'subscriptionDialog';
+const azuresubs = new azuresubs_1.AzureUsageDetails();
 const AUTH_DIALOG = 'auth_dialog';
 const DATE_TIME_DIALOG = 'date_time_dialog';
-const connection = 'BotOAuth';
+const connection = 'azure';
 const OAUTH_SETTINGS = {
     connectionName: connection,
     title: 'Log In',
@@ -72,6 +74,37 @@ class AzureUsageBot {
             this.oauthPrompt.bind(this),
             this.loginResults.bind(this)
         ]));
+        this.dialogs.add(new botbuilder_dialogs_1.WaterfallDialog(subcriptionDialog, [
+            this.askForSubcription.bind(this),
+            this.captureSubscription.bind(this)
+        ]));
+    }
+    askForSubcription(step) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let subscriptionList = [];
+            let azureSubscription = yield azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01');
+            let totalSubscription = azureSubscription['value'].length;
+            if (totalSubscription === 0) {
+                yield step.context.sendActivity('You do not have any active subscription');
+                yield step.context.sendActivity('Without any active subscription you are not able to proceed further');
+                config.userDetails.userToken = null;
+                let botAdapter = step.context.adapter;
+                yield botAdapter.signOutUser(step.context, connection);
+                return yield step.endDialog();
+            }
+            for (let idx = 0; idx < totalSubscription; idx++) {
+                subscriptionList.push({ "subscriptionId": azureSubscription['value'][idx].subscriptionId, "subscriptionName": azureSubscription['value'][idx].displayName });
+            }
+            yield step.context.sendActivity(`Please select any one subscription`);
+            yield step.context.sendActivity({ attachments: [heroCardObject.HeroCardForSubscriptionId(subscriptionList)] });
+        });
+    }
+    captureSubscription(step) {
+        return __awaiter(this, void 0, void 0, function* () {
+            config.userDetails.subscriptionId = step.result;
+            let dialogControl = yield this.dialogs.createContext(step.context);
+            yield dialogControl.beginDialog(welcomeMessage);
+        });
     }
     oauthPrompt(step) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -86,14 +119,11 @@ class AzureUsageBot {
             console.log(tokenResponse);
             if (tokenResponse) {
                 const claims = jwtDecode(tokenResponse['token']);
-                console.log(claims);
-                let userEmail = claims['email'];
-                userLoginToken = tokenResponse['token'];
+                config.userDetails.userToken = tokenResponse['token'];
                 yield step.context.sendActivity('You are now logged in sucessfully.');
                 yield step.context.sendActivity(`Hi ${claims['email']}`);
-                yield step.context.sendActivity(`This is your subscription id ${config.userDetails.subscriptionId}`);
                 let dialogControl = yield this.dialogs.createContext(step.context);
-                yield dialogControl.beginDialog(welcomeMessage);
+                yield dialogControl.beginDialog(subcriptionDialog);
             }
         });
     }
@@ -111,22 +141,40 @@ class AzureUsageBot {
     getResource(step) {
         return __awaiter(this, void 0, void 0, function* () {
             if (step.result && step.result.value) {
+                const dialogControl = yield this.dialogs.createContext(step.context);
                 let billingDates;
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].resources = step.result.value;
                 console.log(filter['filterData']);
                 let usageCost = yield callapi_1.callApi(filter['filterData']);
-                let tempCost = yield this.userCost.get(step.context, {});
-                tempCost.cost = usageCost;
-                yield this.userCost.set(step.context, tempCost);
-                if (usageCost['resourceGroup']['keys'].length > 0) {
-                    let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
-                    yield this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
-                    const dialogControl = yield this.dialogs.createContext(step.context);
-                    yield dialogControl.beginDialog(breakDownForCost);
+                if (usageCost.hasOwnProperty('error')) {
+                    config.userDetails.userToken = null;
+                    yield step.context.sendActivity("Your token was expired");
+                    yield dialogControl.beginDialog(AUTH_DIALOG);
                 }
-                else
-                    yield step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
+                else {
+                    let tempCost = yield this.userCost.get(step.context, {});
+                    tempCost.cost = usageCost;
+                    console.log("usagecost", usageCost);
+                    yield this.userCost.set(step.context, tempCost);
+                    if (step.result.value === "resourceGroup") {
+                        if (usageCost['resourceGroup']['keys'].length > 0) {
+                            let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
+                            yield this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
+                            yield dialogControl.beginDialog(breakDownForCost);
+                        }
+                        else
+                            yield step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
+                    }
+                    else {
+                        if (usageCost['keys'].length > 0) {
+                            let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost, filter['filterData'].resources, usageCost['keys'].length);
+                            yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                        }
+                        else
+                            yield step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
+                    }
+                }
             }
         });
     }
@@ -221,7 +269,7 @@ class AzureUsageBot {
     createApativeCard(context, cardBody, usageDate) {
         return __awaiter(this, void 0, void 0, function* () {
             yield context.sendActivity({
-                text: `Your previous usage details shown from ${usageDate}`,
+                text: `Your usage details shown from ${usageDate}`,
                 attachments: [botbuilder_1.CardFactory.adaptiveCard({
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                         "version": "1.0",
@@ -247,12 +295,16 @@ class AzureUsageBot {
             yield dialogControl.continueDialog();
             console.log("After continue dialog");
             if (context.activity.type === botbuilder_1.ActivityTypes.Message) {
+                if (config.userDetails.userToken === null) {
+                    yield dialogControl.beginDialog(AUTH_DIALOG);
+                }
                 if (context.activity.text === "logout") {
-                    userLoginToken = null;
+                    config.userDetails.userToken = null;
                     config.userDetails.subscriptionId = null;
                     let botAdapter = context.adapter;
                     yield botAdapter.signOutUser(context, connection);
                     yield context.sendActivity('You have been signed out.');
+                    yield dialogControl.beginDialog(AUTH_DIALOG);
                 }
                 console.log("inside msg");
                 console.log("dialog msg", context.responded);
@@ -284,16 +336,23 @@ class AzureUsageBot {
                                 else
                                     resources = "resourceType";
                                 usageCost = yield callapi_1.callApi(filterData);
-                                let tempCost = yield this.userCost.get(context, {});
-                                tempCost.cost = usageCost;
-                                yield this.userCost.set(context, tempCost);
-                                if (usageCost['resourceGroup']['keys'].length > 0) {
-                                    let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], resources, usageCost['resourceGroup']['keys'].length);
-                                    yield this.createApativeCard(context, cardBody, usageCost['resourceGroup']['usageDate']);
-                                    yield dialogControl.beginDialog(breakDownForCost);
+                                if (usageCost.hasOwnProperty('error')) {
+                                    yield context.sendActivity("Your token was expired");
+                                    config.userDetails.userToken = null;
+                                    yield dialogControl.beginDialog(AUTH_DIALOG);
                                 }
-                                else
-                                    yield context.sendActivity('sorry data was not found or it may not even crossed a rupee!!');
+                                else {
+                                    let tempCost = yield this.userCost.get(context, {});
+                                    tempCost.cost = usageCost;
+                                    yield this.userCost.set(context, tempCost);
+                                    if (usageCost['resourceGroup']['keys'].length > 0) {
+                                        let cardBody = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], resources, usageCost['resourceGroup']['keys'].length);
+                                        yield this.createApativeCard(context, cardBody, usageCost['resourceGroup']['usageDate']);
+                                        yield dialogControl.beginDialog(breakDownForCost);
+                                    }
+                                    else
+                                        yield context.sendActivity('sorry data was not found or it may not even crossed a rupee!!');
+                                }
                             }
                             break;
                         case breakDown:
@@ -321,24 +380,34 @@ class AzureUsageBot {
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
                             usageCost = yield callapi_1.callApi(filterData);
-                            console.log(usageCost);
-                            if (usageCost['currentKeys'].length > 0) {
-                                if (usageCost['current'][usageCost['currentKeys'][0]] >= 1) {
-                                    let cardBody = adaptiveCardObject.adaptiveCardForTrend(usageCost, usageCost['currentKeys']);
-                                    yield context.sendActivity(`The current usage shown from ${usageCost['currentDate']}`);
-                                    yield this.createApativeCard(context, cardBody, usageCost['oldDate']);
+                            if (usageCost.hasOwnProperty('error')) {
+                                yield context.sendActivity("Your token was expired");
+                                config.userDetails.userToken = null;
+                                yield dialogControl.beginDialog(AUTH_DIALOG);
+                            }
+                            else {
+                                if (usageCost['currentKeys'].length > 0) {
+                                    if (usageCost['current'][usageCost['currentKeys'][0]] >= 1) {
+                                        let cardBody = adaptiveCardObject.adaptiveCardForTrend(usageCost, usageCost['currentKeys']);
+                                        yield context.sendActivity(`The current usage shown from ${usageCost['currentDate']}`);
+                                        yield this.createApativeCard(context, cardBody, usageCost['oldDate']);
+                                    }
+                                    else
+                                        yield context.sendActivity("Your usage cost does not crossed even a rupee");
                                 }
                                 else
-                                    yield context.sendActivity("Your usage cost does not crossed even a rupee");
+                                    yield context.sendActivity("No data was found");
                             }
-                            else
-                                yield context.sendActivity("No data was found");
                             break;
                         case billingPeriod:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
                             billingDates = yield callapi_1.callApi(filterData);
-                            console.log(billingDates);
+                            if (billingDates.hasOwnProperty('error')) {
+                                yield context.sendActivity("Your token was expired");
+                                config.userDetails.userToken = null;
+                                yield dialogControl.beginDialog(AUTH_DIALOG);
+                            }
                             yield context.sendActivity("Here is your top 5 billing period dates");
                             yield context.sendActivity({ attachments: [heroCardObject.HeroCardForBillingPeriod(billingDates)] });
                             break;
@@ -351,9 +420,8 @@ class AzureUsageBot {
             else if (context.activity.type === botbuilder_1.ActivityTypes.ConversationUpdate &&
                 context.activity.recipient.id !== context.activity.membersAdded[0].id) {
                 yield context.sendActivity('hai');
-                if (userLoginToken === "dfs") {
+                if (config.userDetails.userToken === null) {
                     yield dialogControl.beginDialog(AUTH_DIALOG);
-                    console.log("dialog called");
                 }
                 else {
                     yield dialogControl.beginDialog(welcomeMessage);
