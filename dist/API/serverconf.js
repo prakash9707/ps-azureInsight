@@ -67,7 +67,6 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                     url = azuresubs.generateAzureAPI(req.body);
                 }
                 logger.info("API " + url);
-                console.log("conf", url);
                 subsData = yield azuresubs.getAzureUsageDetails(url);
                 if (subsData.hasOwnProperty('error')) {
                     res.send(401, subsData);
@@ -85,16 +84,19 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                 else if (req.body.filteredData.intent == "trend") {
                     data = parsingAzureDataObj.findTrendCost(subsData, req.body.filteredData.midRange);
                 }
-                else if (req.body.filteredData.intent == "breakdown") {
+                else if (req.body.filteredData.intent == "breakDown") {
                     if (req.body.filteredData.filter.length != 0) {
                         data = parsingAzureDataObj.findBreakdown(subsData);
                     }
-                    else if (req.body.filteredData.Resources == resourceType) {
+                    else if (req.body.filteredData.breakDown == 'resourceType') {
                         data = parsingAzureDataObj.findmeterCost(subsData);
                     }
-                    else if (req.body.filteredData.filter.length == 0) {
+                    else if (req.body.filteredData.breakDown == 'dates') {
                         data = parsingAzureDataObj.findDates(subsData);
                     }
+                }
+                else if (req.body.filteredData.intent === "billingPeriod") {
+                    data = parsingAzureDataObj.billingPeriod(subsData);
                 }
                 else if (req.body.filteredData.intent == "usageQuantity") {
                     if (req.body.filteredData.resources === resourceGroup)
@@ -104,7 +106,6 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                         logger.info(data);
                     }
                 }
-                console.log("data", data);
                 res.send(200, data);
             }
             else

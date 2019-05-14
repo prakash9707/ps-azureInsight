@@ -423,5 +423,21 @@ class ParsingAzureData {
         else
             return "Invalid input";
     }
+    billingPeriod(azureData) {
+        let billingDates = [];
+        let daterange;
+        let billingPeriodLength = azureData.length;
+        let topResult = 5;
+        if (billingPeriodLength < topResult)
+            topResult = billingPeriodLength;
+        for (let idx = 0; idx < topResult; idx++) {
+            let startdate = azureData.value[idx].properties.billingPeriodStartDate;
+            let Enddate = azureData.value[idx].properties.billingPeriodEndDate;
+            daterange = `${startdate} to ${Enddate}`;
+            billingDates.push(daterange);
+        }
+        console.log(billingDates);
+        return billingDates;
+    }
 }
 exports.ParsingAzureData = ParsingAzureData;

@@ -11,7 +11,6 @@ function FilterForLuisData(getLuisData) {
             let userMonth = 'builtin.datetimeV2.daterange';
             let userDate = 'builtin.datetimeV2.date';
             let resources = 'resources';
-            let number = 'builtin.number';
             let filterLuis = {
                 "filter": [],
                 "resources": null,
@@ -22,9 +21,7 @@ function FilterForLuisData(getLuisData) {
             };
             filterLuis["intent"] = getLuisData['topScoringIntent']['intent'];
             for (let idx = 0; idx < entityLength; idx++) {
-                if (getLuisData['entities'][idx]['type'] == number && getLuisData['entities'][idx].resolution.value < 100)
-                    filterLuis['number'] = getLuisData['entities'][idx].resolution.value;
-                else if (getLuisData['entities'][idx]['type'] == resources)
+                if (getLuisData['entities'][idx]['type'] == resources)
                     filterLuis['resources'] = getLuisData['entities'][idx].resolution.values[0];
                 else if (getLuisData['entities'][idx]['type'] == resourceGroupNames) {
                     filterLuis.filter.push({
