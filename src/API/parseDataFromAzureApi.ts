@@ -507,8 +507,24 @@ export class ParsingAzureData {
 
     }
 
-
-
+    /*This function is used to show the top 5 billing periods*/
+    billingPeriod(azureData:any)
+    {
+        let billingDates: Array<string> = [];
+        let daterange: string;
+        let billingPeriodLength : number = azureData.length;
+        let topResult: number = 5;
+        if(billingPeriodLength < topResult)
+           topResult = billingPeriodLength;
+        for (let idx: number = 0; idx < topResult; idx++) {
+            let startdate = azureData.value[idx].properties.billingPeriodStartDate;
+            let Enddate = azureData.value[idx].properties.billingPeriodEndDate;
+            daterange = `${startdate} to ${Enddate}`;
+            billingDates.push(daterange);
+        }
+        console.log(billingDates);
+       return billingDates;   
+    }
 }
 
 

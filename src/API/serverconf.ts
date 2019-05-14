@@ -62,7 +62,6 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                 }
                 
                 logger.info("API "+ url);
-                console.log("conf",url);
                 subsData = await azuresubs.getAzureUsageDetails(url);
                 //console.log("azure data", subsData);
                 let data: any = {};
@@ -81,19 +80,24 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                 else if (req.body.filteredData.intent == "trend") {
                     data = parsingAzureDataObj.findTrendCost(subsData, req.body.filteredData.midRange);
                 }
-                else if (req.body.filteredData.intent == "breakdown") {
+                else if (req.body.filteredData.intent == "breakDown") {
                     if (req.body.filteredData.filter.length != 0) {
                         //calling the findBreakdown  for Breakdown by particular resource group
                         data = parsingAzureDataObj.findBreakdown(subsData);
                     }
-                    else if (req.body.filteredData.Resources == resourceType) {
+                    else if (req.body.filteredData.breakDown == 'resourceType') {
                         //calling the findmeterCost for Breakdown by whole resource type
                         data = parsingAzureDataObj.findmeterCost(subsData);
                     }
-                    else if (req.body.filteredData.filter.length == 0) {
+                    else if (req.body.filteredData.breakDown == 'dates') {
                         //calling the findDates for breakdown by dates..
                         data = parsingAzureDataObj.findDates(subsData);
                     }
+                }
+
+                else if(req.body.filteredData.intent === "billingPeriod")
+                {
+                    data = parsingAzureDataObj.billingPeriod(subsData);
                 }
 
                 else if (req.body.filteredData.intent == "usageQuantity") {
@@ -104,7 +108,7 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                         logger.info(data);
                     }
                 }
-                console.log("data", data);
+                //console.log("data", data);
                 res.send(200, data);
             }
             else

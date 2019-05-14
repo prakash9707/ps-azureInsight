@@ -175,11 +175,11 @@ export class AzureUsageBot {
             tempCost.cost = usageCost;
             await this.userCost.set(step.context, tempCost);
             if (usageCost['resourceGroup']['keys'].length > 0) {
-                
-                    let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
-                    await this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
-                    const dialogControl = await this.dialogs.createContext(step.context);
-                    await dialogControl.beginDialog(breakDownForCost);
+
+                let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
+                await this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
+                const dialogControl = await this.dialogs.createContext(step.context);
+                await dialogControl.beginDialog(breakDownForCost);
             }
             else
                 await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
@@ -192,35 +192,28 @@ export class AzureUsageBot {
     }
 
     async getBreakDown(step: any) {
-        if (step.result) {
+        if (step.result.value === "Dates") {
             let filter: any = await this.filterForPrompt.get(step.context, {});
             filter['filterData'].breakDown = step.result.value;
             console.log(filter['filterData']);
-            let billingDates: any;
             let usageCost: any;
             if (filter['filterData']['queryBy'] === "billingPeriod") {
-                billingDates = await callApi(filter['filterData']);
-                console.log("dates ", billingDates);
-                if (billingDates) {
-                    billingDates = billingDates.split('to');
-                    filter['filterData']['queryBy'] = "userChoice";
-                    filter['filterData']['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
-                }
-                else {
-                    await step.context.sendActivity('No data was found');
-                }
-            }
-            if (filter['filterData']['queryBy'] === "userChoice") {
                 usageCost = await callApi(filter['filterData']);
-                if (filter['filterData']['breakDown'] === "dates") {
-                    let cardBody: JSON = adaptiveCardObject.DatesBreakdown(usageCost);
-                    await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
-                }
-                else {
-                    let cardBody: JSON = adaptiveCardObject.resourcetypeData(usageCost);
-                    await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
-
-                }
+                console.log("dates ",usageCost);
+                let cardBody: JSON = adaptiveCardObject.DatesBreakdown(usageCost);
+                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);     
+            }
+        }
+        else{
+            let filter: any = await this.filterForPrompt.get(step.context, {});
+            filter['filterData'].breakDown = step.result.value;
+            console.log(filter['filterData']);
+            let usageCost: any;
+            if (filter['filterData']['queryBy'] === "billingPeriod") {
+                usageCost = await callApi(filter['filterData']);
+                console.log("resource type data ",usageCost);
+                let cardBody: JSON = adaptiveCardObject.resourcetypeData(usageCost);
+                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);     
             }
         }
     }
@@ -233,7 +226,7 @@ export class AzureUsageBot {
         let usageCost: any = await this.userCost.get(step.context, {});
         if (step.result) {
             if (step.result.value === "Dates") {
-                console.log(usageCost['dates']);
+                //console.log(usageCost['dates']);
                 let cardBody: JSON = adaptiveCardObject.DatesBreakdown(usageCost['cost']['dates']);
                 await this.createApativeCard(step.context, cardBody, usageCost['cost']['dates']['usageDate']);
             }
@@ -394,7 +387,6 @@ export class AzureUsageBot {
                         break;
                     case breakDown:
                         filterData = FilterForLuisData(getLuisData);
-                        console.log(filterData);
                         filter = await this.filterForPrompt.get(context, {});
                         filter.filterData = filterData;
                         await this.filterForPrompt.set(context, filter);
@@ -403,26 +395,16 @@ export class AzureUsageBot {
                             break;
                         }
                         if (filterData['queryBy'] === "billingPeriod") {
-                            billingDates = await callApi(filterData);
-                            if (billingDates) {
-                                billingDates = billingDates.split('to');
-                                filterData['queryBy'] = "userChoice";
-                                filterData['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
-                            }
-                            else {
-                                await context.sendActivity('No data was found');
-                                break;
-                            }
+                            usageCost = await callApi(filterData);
                         }
                         if (filterData['queryBy'] === "userChoice") {
                             usageCost = await callApi(filterData);
+                        }
                             if (filterData['breakDown'] === "dates")
                                 cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
                             else if (filterData['breakDown'] === "resourceType")
                                 cardBody = adaptiveCardObject.resourcetypeData(usageCost);
                             await this.createApativeCard(context, cardBody, usageCost['usageDate']);
-
-                        }
                         break;
                     case trend:
                         filterData = FilterForLuisData(getLuisData);
@@ -457,6 +439,7 @@ export class AzureUsageBot {
                         filterData = FilterForLuisData(getLuisData);
                         console.log(filterData);
                         billingDates = await callApi(filterData);
+                        console.log(billingDates);
                         await context.sendActivity("Here is your top 5 billing period dates");
                         await context.sendActivity({ attachments: [heroCardObject.HeroCardForBillingPeriod(billingDates)] });
                         break;

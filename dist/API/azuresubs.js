@@ -22,6 +22,9 @@ class AZUREUsageDetails {
                     let endDate = moment(dates[1]);
                     filterquery = `(properties/usageStart ge '${dates[0]}' AND properties/usageEnd le '${endDate.format("YYYY-MM-DD")}')`;
                 }
+                if (filterData['filteredData']['intent'] === "billingPeriod") {
+                    return `https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Billing/billingPeriods?api-version=2017-04-24-preview`;
+                }
                 if (filterLength != 0 && filterData['filteredData']['resources'] === config.Resources.ResourceGroup) {
                     if (filterquery == null)
                         filterquery = '(';

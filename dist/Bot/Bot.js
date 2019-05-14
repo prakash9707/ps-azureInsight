@@ -137,34 +137,28 @@ class AzureUsageBot {
     }
     getBreakDown(step) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (step.result) {
+            if (step.result.value === "Dates") {
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].breakDown = step.result.value;
                 console.log(filter['filterData']);
-                let billingDates;
                 let usageCost;
                 if (filter['filterData']['queryBy'] === "billingPeriod") {
-                    billingDates = yield callapi_1.callApi(filter['filterData']);
-                    console.log("dates ", billingDates);
-                    if (billingDates) {
-                        billingDates = billingDates.split('to');
-                        filter['filterData']['queryBy'] = "userChoice";
-                        filter['filterData']['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
-                    }
-                    else {
-                        yield step.context.sendActivity('No data was found');
-                    }
-                }
-                if (filter['filterData']['queryBy'] === "userChoice") {
                     usageCost = yield callapi_1.callApi(filter['filterData']);
-                    if (filter['filterData']['breakDown'] === "dates") {
-                        let cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
-                        yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
-                    }
-                    else {
-                        let cardBody = adaptiveCardObject.resourcetypeData(usageCost);
-                        yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
-                    }
+                    console.log("dates ", usageCost);
+                    let cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
+                    yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                }
+            }
+            else {
+                let filter = yield this.filterForPrompt.get(step.context, {});
+                filter['filterData'].breakDown = step.result.value;
+                console.log(filter['filterData']);
+                let usageCost;
+                if (filter['filterData']['queryBy'] === "billingPeriod") {
+                    usageCost = yield callapi_1.callApi(filter['filterData']);
+                    console.log("resource type data ", usageCost);
+                    let cardBody = adaptiveCardObject.resourcetypeData(usageCost);
+                    yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
                 }
             }
         });
@@ -179,7 +173,6 @@ class AzureUsageBot {
             let usageCost = yield this.userCost.get(step.context, {});
             if (step.result) {
                 if (step.result.value === "Dates") {
-                    console.log(usageCost['dates']);
                     let cardBody = adaptiveCardObject.DatesBreakdown(usageCost['cost']['dates']);
                     yield this.createApativeCard(step.context, cardBody, usageCost['cost']['dates']['usageDate']);
                 }
@@ -228,7 +221,7 @@ class AzureUsageBot {
     createApativeCard(context, cardBody, usageDate) {
         return __awaiter(this, void 0, void 0, function* () {
             yield context.sendActivity({
-                text: `Your usage details shown from ${usageDate}`,
+                text: `Your previous usage details shown from ${usageDate}`,
                 attachments: [botbuilder_1.CardFactory.adaptiveCard({
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                         "version": "1.0",
@@ -305,7 +298,6 @@ class AzureUsageBot {
                             break;
                         case breakDown:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
-                            console.log(filterData);
                             filter = yield this.filterForPrompt.get(context, {});
                             filter.filterData = filterData;
                             yield this.filterForPrompt.set(context, filter);
@@ -314,25 +306,16 @@ class AzureUsageBot {
                                 break;
                             }
                             if (filterData['queryBy'] === "billingPeriod") {
-                                billingDates = yield callapi_1.callApi(filterData);
-                                if (billingDates) {
-                                    billingDates = billingDates.split('to');
-                                    filterData['queryBy'] = "userChoice";
-                                    filterData['dateRange'] = `${billingDates[0]} to ${billingDates[1]}`;
-                                }
-                                else {
-                                    yield context.sendActivity('No data was found');
-                                    break;
-                                }
+                                usageCost = yield callapi_1.callApi(filterData);
                             }
                             if (filterData['queryBy'] === "userChoice") {
                                 usageCost = yield callapi_1.callApi(filterData);
-                                if (filterData['breakDown'] === "dates")
-                                    cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
-                                else if (filterData['breakDown'] === "resourceType")
-                                    cardBody = adaptiveCardObject.resourcetypeData(usageCost);
-                                yield this.createApativeCard(context, cardBody, usageCost['usageDate']);
                             }
+                            if (filterData['breakDown'] === "dates")
+                                cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
+                            else if (filterData['breakDown'] === "resourceType")
+                                cardBody = adaptiveCardObject.resourcetypeData(usageCost);
+                            yield this.createApativeCard(context, cardBody, usageCost['usageDate']);
                             break;
                         case trend:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
@@ -355,6 +338,7 @@ class AzureUsageBot {
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
                             billingDates = yield callapi_1.callApi(filterData);
+                            console.log(billingDates);
                             yield context.sendActivity("Here is your top 5 billing period dates");
                             yield context.sendActivity({ attachments: [heroCardObject.HeroCardForBillingPeriod(billingDates)] });
                             break;
