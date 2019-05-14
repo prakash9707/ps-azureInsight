@@ -1,13 +1,14 @@
 const msRestAzure : any = require("ms-rest-azure");
+import * as request from 'request';
 import * as logger from "../logger";
-const subscriptionId: string = '98846a4a-670c-426e-beac-362d79862397';
 const config : any = require("../../config/default.json");
 import * as moment from "moment";
-export class AZUREUsageDetails {
+export class AzureUsageDetails {
 
     generateAzureAPI(filterData: any): string {
 
         try {
+            const subscriptionId : string = config.userDetails.subscriptionId;
             let filterquery: string = null;
             if (filterData.hasOwnProperty('filteredData') && filterData['filteredData'].hasOwnProperty('intent') && filterData['filteredData'].hasOwnProperty('filter') && filterData['filteredData'].hasOwnProperty('dateRange')) {
                 let filterLength = filterData['filteredData']['filter'].length;
@@ -50,35 +51,61 @@ export class AZUREUsageDetails {
     }
 
     getAzureUsageDetails(currentUrl: string) {
+        // try {
+        //     return new Promise(function (resolve, reject) {
+
+        //         const AzureServiceClient = msRestAzure.AzureServiceClient;
+        //         const clientId = '4d689e3d-f9a8-4863-8845-cf4e7adfa421';
+        //         const secret = 'f2167dc2-b08a-4d7b-a21a-a1d90912de86';
+        //         const domain = '97a80a72-fec2-4577-81ad-2da2880ff7bb'; //also known as tenantId
+        //         // const subscriptionId = '98846a4a-670c-426e-beac-362d79862397';
+
+        //         msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain).then((creds) => {
+        //             var client = new AzureServiceClient(creds);
+        //             let options = {
+        //                 method: 'GET',
+        //                 url: currentUrl,
+        //                 headers: {
+        //                     'user-agent': 'MyTestApp/1.0'
+        //                 }
+        //             }
+        //             return client.sendRequest(options);
+        //         }).then((result) => {
+        //             resolve(result);
+        //         }).catch((err) => {
+        //             reject(err);
+        //         });
+        //     }
+
+        //     )
+        // } catch (err) {
+        //     logger.error(err + "occurs on getting data from azure api");
+        // }
+
         try {
-            return new Promise(function (resolve, reject) {
-
-                const AzureServiceClient = msRestAzure.AzureServiceClient;
-                const clientId = '4d689e3d-f9a8-4863-8845-cf4e7adfa421';
-                const secret = 'f2167dc2-b08a-4d7b-a21a-a1d90912de86';
-                const domain = '97a80a72-fec2-4577-81ad-2da2880ff7bb'; //also known as tenantId
-                // const subscriptionId = '98846a4a-670c-426e-beac-362d79862397';
-
-                msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain).then((creds) => {
-                    var client = new AzureServiceClient(creds);
-                    let options = {
-                        method: 'GET',
-                        url: currentUrl,
-                        headers: {
-                            'user-agent': 'MyTestApp/1.0'
-                        }
+            return new Promise((resolve, reject) => {
+                request.get({
+                    url: currentUrl,
+                    headers: {
+                        "Authorization": "Bearer " + config.userDetails.userToken
                     }
-                    return client.sendRequest(options);
-                }).then((result) => {
-                    resolve(result);
-                }).catch((err) => {
-                    reject(err);
+                }, function (err, response, body) {
+                    if (err)
+                        reject(err);
+                    else if (body && response.statusCode === 200){
+                        // get the correct usage details..
+                        resolve(JSON.parse(body));
+                    }
+                    else if (body && response.statusCode === 401 && body.hasOwnProperty('error')){
+                        // token expired ..
+                        resolve({"error" : "Token expired"});
+                    }
                 });
-            }
-
-            )
-        } catch (err) {
-            logger.error(err + "occurs on getting data from azure api");
+            });
         }
+        catch (error) {
+            console.log(error + " get error in get user details");
+        }
+
     }
 }
