@@ -1,8 +1,8 @@
 const restify = require('restify');
 const restifyErrors = require('restify-errors');
 const logger = require('../logger');
-import { AzureUsageDetails } from "../API/azuresubs";
-import { ParsingAzureData } from "../API/parseDataFromAzureApi";
+import { AzureUsageDetails } from "./azuresubs";
+import { ParsingAzureData } from "./parseDataFromAzureApi";
 const config = require("../../config/default.json");
 const azuresubs = new AzureUsageDetails();
 const parsingAzureDataObj = new ParsingAzureData();

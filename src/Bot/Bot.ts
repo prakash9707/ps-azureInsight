@@ -1,15 +1,14 @@
 import { TurnContext, ActivityTypes, CardFactory, ConversationState, UserState, BotFrameworkAdapter } from "botbuilder";
 import { ChoicePrompt, DialogSet, WaterfallDialog, OAuthPrompt, DateTimePrompt, ConfirmPrompt } from "botbuilder-dialogs";
-import * as request from "request";
-import * as querystring from "querystring";
-import { FilterForLuisData } from "../API/FilterTheLuis";
-import { callApi } from "../API/callapi";
+import { getLuisIntent } from "./GetLuisIntent"; 
+import { FilterForLuisData } from "../Services/FilterTheLuis";
+import { callApi } from "../Services/callapi";
 // import { designChartWithAzureData } from "./Chart";
 import * as jwtDecode from 'jwt-decode';
 import { AdaptiveCard } from "./AdaptiveCard";
 import { HeroCard } from "./HeroCard";
-import { AzureUsageDetails } from "../API/azuresubs";
-import { userAgentPolicy } from "@azure/ms-rest-js";
+import { AzureUsageDetails } from "../Services/azuresubs";
+
 
 
 
@@ -136,7 +135,7 @@ export class AzureUsageBot {
         await step.context.sendActivity({ attachments: [heroCardObject.HeroCardForSubscriptionId(subscriptionList)] });
     }
     async captureSubscription(step: any) {
-        config.userDetails.subscriptionId = step.result.value;
+        config.userDetails.subscriptionId = step.result;
         let dialogControl: any = await this.dialogs.createContext(step.context);
         await dialogControl.beginDialog(welcomeMessage);
         
@@ -244,7 +243,7 @@ export class AzureUsageBot {
     }
 
     async getBreakDown(step: any) {
-        if (step.result.value === "Dates") {
+        if (step.result.value === "dates") {
             let filter: any = await this.filterForPrompt.get(step.context, {});
             filter['filterData'].breakDown = step.result.value;
             console.log(filter['filterData']);
@@ -300,36 +299,7 @@ export class AzureUsageBot {
     }
 
 
-    getLuisIntent(utterance: string): object {
-        var endpoint = config.luis.endPoint;
-        var luisAppId = config.luis.luisAppId;
-        var endpointKey = config.luis.endPointKey;
-        var queryParams = {
-            "verbose": true,
-            "q": utterance,
-            "subscription-key": endpointKey
-        }
-        var luisRequest =
-            endpoint + luisAppId +
-            '?' + querystring.stringify(queryParams);
-        return new Promise((resolve, reject) => {
-            try {
-                request(luisRequest, function (err: any,
-                    response: any, body: any) {
-                    if (err) {
-                        reject(err);
-                    }
-                    else {
-                        var data = JSON.parse(body);
-                        resolve(data);
-                    }
-                });
-            }
-            catch (err) {
-                console.log(err + "happend while hitting luis");
-            }
-        });
-    }
+    
 
 
 
@@ -386,7 +356,7 @@ export class AzureUsageBot {
             console.log("inside msg");
             console.log("dialog msg", context.responded);
             if (!context.responded) {
-                getLuisData = await this.getLuisIntent(context.activity.text);
+                getLuisData = await getLuisIntent(context.activity.text);
                 let score: number = getLuisData['topScoringIntent']['score'];
                 console.log(score);
                 if (score > 0.7)
@@ -513,7 +483,7 @@ export class AzureUsageBot {
                             config.userDetails.userToken = null;
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
-                        await context.sendActivity("Here is your top 5 billing period dates");
+                        await context.sendActivity("Here is your recent billing period dates");
                         await context.sendActivity({ attachments: [heroCardObject.HeroCardForBillingPeriod(billingDates)] });
                         break;
 

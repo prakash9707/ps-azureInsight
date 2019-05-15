@@ -39,7 +39,7 @@
   },
   "scripts": {
     "start": "gulp scripts && node ./server.js",
-    "test": "mocha --require ts-node/register test/*.test.ts --timeout 30000",
+    "test": "mocha --require ts-node/register src/tests/**/*.ts --timeout 300000",
     "APITest": "newman run APITesting/test.json"
   },
   "author": "vln",

@@ -34,34 +34,34 @@ export class ParsingAzureData {
                 });
                 startDate = moment.min(usageDates);
                 endDate = moment.max(usageDates);
-            
-            
-            let keysSorted: Array<string> = Object.keys(resourceCost).sort(function (a, b) { return resourceCost[b] - resourceCost[a] });
-            resourceCost['keys'] = keysSorted;
-            for (let idx: number = 0; idx < resourceCost['keys'].length; idx++) {
-                if (idx <= 4)
-                    resourceCostWithOthers[resourceCost['keys'][idx]] = resourceCost[resourceCost['keys'][idx]];
-                else
-                    otherCost += resourceCost[resourceCost['keys'][idx]];
+
+
+                let keysSorted: Array<string> = Object.keys(resourceCost).sort(function (a, b) { return resourceCost[b] - resourceCost[a] });
+                resourceCost['keys'] = keysSorted;
+                for (let idx: number = 0; idx < resourceCost['keys'].length; idx++) {
+                    if (idx <= 4)
+                        resourceCostWithOthers[resourceCost['keys'][idx]] = resourceCost[resourceCost['keys'][idx]];
+                    else
+                        otherCost += resourceCost[resourceCost['keys'][idx]];
+                }
+                if (otherCost != 0)
+                    resourceCostWithOthers['others'] = otherCost;
+                resourceCostWithOthers['keys'] = Object.keys(resourceCostWithOthers);
+                resourceCostWithOthers['totalCost'] = totalCost;
+                resourceCostWithOthers['currency'] = currencyUsed;
+                resourceCostWithOthers['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
+                console.log(resourceCostWithOthers);
+                return resourceCostWithOthers;
             }
-            if (otherCost != 0)
-                resourceCostWithOthers['others'] = otherCost;
-            resourceCostWithOthers['keys'] = Object.keys(resourceCostWithOthers);
-            resourceCostWithOthers['totalCost'] = totalCost;
-            resourceCostWithOthers['currency'] = currencyUsed;
-            resourceCostWithOthers['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
-            console.log(resourceCostWithOthers);
-            return resourceCostWithOthers;
+            catch (e) {
+                logger.error(e + " Occurs on findCost function");
+            }
         }
-        catch (e) {
-            logger.error(e + " Occurs on findCost function");
-        }
-    }
         else
             return "Invalid input";
     }
     //Sorting Function
-    sortingValues(params : any) : Array<string> {
+    sortingValues(params: any): Array<string> {
         let sortedOrder = Object.keys(params).sort(function (a, b) { return params[b] - params[a] });
         return sortedOrder;
     }
@@ -75,7 +75,7 @@ export class ParsingAzureData {
         let meterCategory = {};
         let totalCost: number = 0;
         let currencyUsed: string;
-        let otherCost : number = 0;
+        let otherCost: number = 0;
         let startDate, endDate;
         if (azureData.hasOwnProperty('value')) {
             let total_records = azureData.value.length;
@@ -99,7 +99,7 @@ export class ParsingAzureData {
                         itr--;
                     }
 
-                    
+
                 }
             } catch (e) {
                 logger.error(e + " occured on find meter category function");
@@ -117,7 +117,7 @@ export class ParsingAzureData {
             }
             let resourcegroupSorted = this.sortingValues(resourcegroup);
             let resourcetypeResult = {};
-        
+
             for (let i = 0; i < resourcegroupSorted.length; i++) {
                 resourcetypeResult[resourcegroupSorted[i]] = meterCategory[resourcegroupSorted[i]];
             }
@@ -217,7 +217,7 @@ export class ParsingAzureData {
             result['currentKeys'] = keysSorted;
             result['old']['Total'] = oldTotal;
             result['current']['Total'] = currentTotal;
-            let usageDates = azureData['value'].map(function (data : any) {
+            let usageDates = azureData['value'].map(function (data: any) {
                 return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
             });
             startDate = moment.min(usageDates);
@@ -349,10 +349,10 @@ export class ParsingAzureData {
     FindUsageQuantity(azureData: any): any {
         if (azureData.hasOwnProperty('value')) {
             let totalRecords: number = azureData['value'].length;
-            let totalusage: number = 0;
-            let usageQuantity : any = {};
-            let usageQuantityWithOthers : any = {};
-            let othersCost : number = 0;
+            let totalCost: number = 0;
+            let usageQuantity: any = {};
+            let usageQuantityWithOthers: any = {};
+            let othersCost: number = 0;
             try {
                 for (let idx: number = 0; idx < totalRecords; idx++) {
                     if (usageQuantity.hasOwnProperty(azureData.value[idx].properties.instanceName)) {
@@ -361,7 +361,7 @@ export class ParsingAzureData {
                     else {
                         usageQuantity[azureData.value[idx].properties.instanceName] = azureData.value[idx].properties.usageQuantity;
                     }
-                    totalusage += azureData.value[idx].properties.usageQuantity;
+                    totalCost += azureData.value[idx].properties.usageQuantity;
                 }
             }
             catch (e) {
@@ -370,7 +370,7 @@ export class ParsingAzureData {
             let keysSorted: Array<string> = Object.keys(usageQuantity).sort(function (a, b) { return usageQuantity[b] - usageQuantity[a] });
             usageQuantity['keys'] = keysSorted;
 
-            for(let idx : number = 0; idx < usageQuantity['keys'].length; idx ++){
+            for (let idx: number = 0; idx < usageQuantity['keys'].length; idx++) {
                 if (idx <= 4)
                     usageQuantityWithOthers[usageQuantity['keys'][idx]] = usageQuantity[usageQuantity['keys'][idx]];
                 else
@@ -382,7 +382,7 @@ export class ParsingAzureData {
             let startDate = moment.min(UsageDates);
             let endDate = moment.max(UsageDates);
             usageQuantityWithOthers['keys'] = Object.keys(usageQuantityWithOthers);
-            usageQuantityWithOthers['totalusage'] = totalusage;
+            usageQuantityWithOthers['totalCost'] = totalCost;
             usageQuantityWithOthers['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
             return usageQuantityWithOthers;
 
@@ -401,8 +401,8 @@ export class ParsingAzureData {
         let totalCost: number = 0;
         let currencyUsed: string;
         let startDate, endDate;
-        let resourceTypeWithOthers : any = {};
-        let otherCost : number = 0;
+        let resourceTypeWithOthers: any = {};
+        let otherCost: number = 0;
         if (azureData.hasOwnProperty('value')) {
             let total_records = azureData.value.length;
             try {
@@ -429,46 +429,46 @@ export class ParsingAzureData {
                     if (itr === total_records - 1)
                         endDate = moment((azureData.value[itr].properties.usageStart).slice(0, 10));
                 }
-        var resource = (Object.keys(meterCategory));
-        let resourcetype = {};
-        for (let i = 0; i < resource.length; i++) {
-            let type = Object.keys(meterCategory[resource[i]]);
-            for (let j = 0; j < type.length; j++) {
-                if (resourcetype.hasOwnProperty(type[j])) {
-                    resourcetype[type[j]] += meterCategory[resource[i]][type[j]];
+                var resource = (Object.keys(meterCategory));
+                let resourcetype = {};
+                for (let i = 0; i < resource.length; i++) {
+                    let type = Object.keys(meterCategory[resource[i]]);
+                    for (let j = 0; j < type.length; j++) {
+                        if (resourcetype.hasOwnProperty(type[j])) {
+                            resourcetype[type[j]] += meterCategory[resource[i]][type[j]];
 
+                        }
+                        else
+                            resourcetype[type[j]] = meterCategory[resource[i]][type[j]];
+                    }
                 }
-                else
-                    resourcetype[type[j]] = meterCategory[resource[i]][type[j]];
+
+                let keysSorted: Array<string> = Object.keys(resourcetype).sort(function (a, b) { return resourcetype[b] - resourcetype[a] });
+                resourcetype['keys'] = keysSorted;
+                let usageDates = azureData['value'].map(function (data) {
+                    return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
+                });
+                startDate = moment.min(usageDates);
+                endDate = moment.max(usageDates);
+                for (let idx: number = 0; idx < resourcetype['keys'].length; idx++) {
+                    if (idx <= 4)
+                        resourceTypeWithOthers[resourcetype['keys'][idx]] = resourcetype[resourcetype['keys'][idx]];
+                    else
+                        otherCost += resourcetype[resourcetype['keys'][idx]];
+                }
+                if (otherCost != 0)
+                    resourceTypeWithOthers['others'] = otherCost;
+                resourceTypeWithOthers['keys'] = Object.keys(resourceTypeWithOthers);
+                resourceTypeWithOthers['currency'] = currencyUsed;
+                resourceTypeWithOthers['totalCost'] = totalCost;
+                resourceTypeWithOthers['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
+                return resourceTypeWithOthers;
+            } catch (e) {
+                logger.error(e + " occured on find meter category function");
             }
         }
 
-        let keysSorted: Array<string> = Object.keys(resourcetype).sort(function (a, b) { return resourcetype[b] - resourcetype[a] });
-        resourcetype['keys'] = keysSorted;
-        let usageDates = azureData['value'].map(function (data) {
-            return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
-        });
-        startDate = moment.min(usageDates);
-        endDate = moment.max(usageDates);
-        for(let idx : number = 0; idx < resourcetype['keys'].length; idx ++){
-            if (idx <= 4)
-                resourceTypeWithOthers[resourcetype['keys'][idx]] = resourcetype[resourcetype['keys'][idx]];
-            else
-                otherCost += resourcetype[resourcetype['keys'][idx]];
-        }
-        if (otherCost != 0)
-            resourceTypeWithOthers['others'] = otherCost;
-        resourceTypeWithOthers['keys'] = Object.keys(resourceTypeWithOthers);
-        resourceTypeWithOthers['currency'] = currencyUsed;
-        resourceTypeWithOthers['totalCost'] = totalCost;
-        resourceTypeWithOthers['usageDate'] = `${startDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
-        return resourceTypeWithOthers;
-    }catch (e) {
-        logger.error(e + " occured on find meter category function");
     }
-}
-    
-}
     /**
      This method receives the azure JSON data from azure API as a INPUT
      and returns the resources to give Usage quantity for resource type as a OUTPUT
@@ -476,7 +476,7 @@ export class ParsingAzureData {
     FindUsageQuantityForResourceType(azureData: any) {
         if (azureData.hasOwnProperty('value')) {
             let totalRecords: number = azureData['value'].length;
-            let totalusage: number = 0;
+            let totalCost : number = 0;
             let usageQuantity: any = {};
             try {
                 for (let idx: number = 0; idx < totalRecords; idx++) {
@@ -485,11 +485,11 @@ export class ParsingAzureData {
                     else
                         usageQuantity[azureData.value[idx].properties.meterDetails.meterCategory] = azureData.value[idx].properties.usageQuantity;
 
-                    totalusage += azureData.value[idx].properties.usageQuantity;
+                    totalCost += azureData.value[idx].properties.usageQuantity;
                 }
                 let keysSorted: Array<string> = Object.keys(usageQuantity).sort(function (a, b) { return usageQuantity[b] - usageQuantity[a] });
                 usageQuantity['keys'] = keysSorted;
-                usageQuantity['totalusage'] = totalusage;
+                usageQuantity['totalCost'] = totalCost;
                 let usageDates = azureData['value'].map(function (data) {
                     return moment(data.properties.usageStart.slice(0, 10), 'YYYY-MM-DD');
                 });
@@ -508,22 +508,25 @@ export class ParsingAzureData {
     }
 
     /*This function is used to show the top 5 billing periods*/
-    billingPeriod(azureData:any)
-    {
-        let billingDates: Array<string> = [];
-        let daterange: string;
-        let billingPeriodLength : number = azureData.length;
-        let topResult: number = 5;
-        if(billingPeriodLength < topResult)
-           topResult = billingPeriodLength;
-        for (let idx: number = 0; idx < topResult; idx++) {
-            let startdate = azureData.value[idx].properties.billingPeriodStartDate;
-            let Enddate = azureData.value[idx].properties.billingPeriodEndDate;
-            daterange = `${startdate} to ${Enddate}`;
-            billingDates.push(daterange);
+    billingPeriod(azureData: any) {
+        try {
+            let billingDates: Array<string> = [];
+            let daterange: string;
+            let billingPeriodLength: number = azureData.length;
+            let topResult: number = 5;
+            if (billingPeriodLength < topResult)
+                topResult = billingPeriodLength;
+            for (let idx: number = 0; idx < topResult; idx++) {
+                let startdate = azureData.value[idx].properties.billingPeriodStartDate;
+                let Enddate = azureData.value[idx].properties.billingPeriodEndDate;
+                daterange = `${startdate} to ${Enddate}`;
+                billingDates.push(daterange);
+            }
+            console.log(billingDates);
+            return billingDates;
+        } catch (error) {
+            console.log(error + " occurs on the billing period");
         }
-        console.log(billingDates);
-       return billingDates;   
     }
 }
 

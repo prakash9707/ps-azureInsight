@@ -10,14 +10,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const botbuilder_1 = require("botbuilder");
 const botbuilder_dialogs_1 = require("botbuilder-dialogs");
-const request = require("request");
-const querystring = require("querystring");
-const FilterTheLuis_1 = require("../API/FilterTheLuis");
-const callapi_1 = require("../API/callapi");
+const GetLuisIntent_1 = require("./GetLuisIntent");
+const FilterTheLuis_1 = require("../Services/FilterTheLuis");
+const callapi_1 = require("../Services/callapi");
 const jwtDecode = require("jwt-decode");
 const AdaptiveCard_1 = require("./AdaptiveCard");
 const HeroCard_1 = require("./HeroCard");
-const azuresubs_1 = require("../API/azuresubs");
+const azuresubs_1 = require("../Services/azuresubs");
 const dialogStateProperty = "dialogStateProperty";
 const confirmPrompt = "confirmPrompt";
 const config = require('../../config/default.json');
@@ -142,7 +141,6 @@ class AzureUsageBot {
         return __awaiter(this, void 0, void 0, function* () {
             if (step.result && step.result.value) {
                 const dialogControl = yield this.dialogs.createContext(step.context);
-                let billingDates;
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].resources = step.result.value;
                 console.log(filter['filterData']);
@@ -185,7 +183,7 @@ class AzureUsageBot {
     }
     getBreakDown(step) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (step.result.value === "Dates") {
+            if (step.result.value === "dates") {
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].breakDown = step.result.value;
                 console.log(filter['filterData']);
@@ -238,34 +236,6 @@ class AzureUsageBot {
             return yield step.endDialog();
         });
     }
-    getLuisIntent(utterance) {
-        var endpoint = config.luis.endPoint;
-        var luisAppId = config.luis.luisAppId;
-        var endpointKey = config.luis.endPointKey;
-        var queryParams = {
-            "verbose": true,
-            "q": utterance,
-            "subscription-key": endpointKey
-        };
-        var luisRequest = endpoint + luisAppId +
-            '?' + querystring.stringify(queryParams);
-        return new Promise((resolve, reject) => {
-            try {
-                request(luisRequest, function (err, response, body) {
-                    if (err) {
-                        reject(err);
-                    }
-                    else {
-                        var data = JSON.parse(body);
-                        resolve(data);
-                    }
-                });
-            }
-            catch (err) {
-                console.log(err + "happend while hitting luis");
-            }
-        });
-    }
     createApativeCard(context, cardBody, usageDate) {
         return __awaiter(this, void 0, void 0, function* () {
             yield context.sendActivity({
@@ -309,7 +279,7 @@ class AzureUsageBot {
                 console.log("inside msg");
                 console.log("dialog msg", context.responded);
                 if (!context.responded) {
-                    getLuisData = yield this.getLuisIntent(context.activity.text);
+                    getLuisData = yield GetLuisIntent_1.getLuisIntent(context.activity.text);
                     let score = getLuisData['topScoringIntent']['score'];
                     console.log(score);
                     if (score > 0.7)
@@ -408,7 +378,7 @@ class AzureUsageBot {
                                 config.userDetails.userToken = null;
                                 yield dialogControl.beginDialog(AUTH_DIALOG);
                             }
-                            yield context.sendActivity("Here is your top 5 billing period dates");
+                            yield context.sendActivity("Here is your recent billing period dates");
                             yield context.sendActivity({ attachments: [heroCardObject.HeroCardForBillingPeriod(billingDates)] });
                             break;
                         default:
