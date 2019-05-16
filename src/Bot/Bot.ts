@@ -8,7 +8,7 @@ import * as jwtDecode from 'jwt-decode';
 import { AdaptiveCard } from "./AdaptiveCard";
 import { HeroCard } from "./HeroCard";
 import { AzureUsageDetails } from "../Services/azuresubs";
-
+import * as _ from "lodash";
 
 
 
@@ -57,7 +57,7 @@ export class AzureUsageBot {
     dialogState: any;
     filterForPrompt: any;
     userCost: any;
-    userTokenId: any
+    userToken: string;
 
 
     constructor(conversationState: ConversationState, userState: UserState) {
@@ -66,7 +66,7 @@ export class AzureUsageBot {
         this.dialogState = this.conversationState.createProperty(dialogStateProperty);
         this.filterForPrompt = this.userState.createProperty("createFilter");
         this.userCost = this.userState.createProperty("userCost");
-        this.userTokenId = this.userState.createProperty("userToken");
+        
         //  this.userLoginToken = this.userState.createProperty("userLogin");
 
         this.dialogs = new DialogSet(this.dialogState);
@@ -120,8 +120,7 @@ export class AzureUsageBot {
 
     async askForSubcription(step: any) {
         let subscriptionList = [];
-        let token = await this.userTokenId.get(step.context, null);
-        let azureSubscription = await azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01', token['tokenId']);
+        let azureSubscription = await azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01', this.userToken);
         let totalSubscription: number = azureSubscription['value'].length;
         if (totalSubscription === 0) {
             await step.context.sendActivity('You do not have any active subscription');
@@ -162,11 +161,7 @@ export class AzureUsageBot {
              * After collecting the user detail give the message to the bot
              * Then check with the database to know whether the user is valid or not
              */
-            let tempToken: any = {};
-            console.log(tempToken);
-            tempToken.tokenId = tokenResponse['token'];
-            await this.userTokenId.set(step.context, tempToken);
-            console.log(await this.userTokenId.set(step.context, tempToken));
+            this.userToken = tokenResponse['token'];
             const claims: any = jwtDecode(tokenResponse['token']);
             config.userDetails.userToken = tokenResponse['token'];
             await step.context.sendActivity('You are now logged in sucessfully.');
@@ -206,15 +201,16 @@ export class AzureUsageBot {
             //         await step.context.sendActivity('No data was found');
             //     }
             // }
-            let token = await this.userTokenId.get(step.context, null);
-            let usageCost = await callApi(filter['filterData'], token['tokenId']);
+            
+            let usageCost = await callApi(filter['filterData'], this.userToken);
             if (usageCost.hasOwnProperty('error')) {
-                await this.userTokenId.set(step.context, null);
+                this.userToken = null;
                 await step.context.sendActivity("Your token was expired");
                 await dialogControl.beginDialog(AUTH_DIALOG);
             }
             else {
                 let tempCost = await this.userCost.get(step.context, {});
+
                 tempCost.cost = usageCost;
                 console.log("usagecost", usageCost);
                 await this.userCost.set(step.context, tempCost);
@@ -257,11 +253,10 @@ export class AzureUsageBot {
             console.log(filter['filterData']);
             let usageCost: any;
             if (filter['filterData']['queryBy'] === "billingPeriod") {
-                let token = await this.userTokenId.get(step.context, null);
-                usageCost = await callApi(filter['filterData'], token['tokenId']);
+                usageCost = await callApi(filter['filterData'], this.userToken);
                 if (usageCost.hasOwnProperty('error')) {
                     await step.context.sendActivity("Your token was expired");
-                    await this.userTokenId(step.context, null);
+                    this.userToken = null;
                     await dialogControl.beginDialog(AUTH_DIALOG);
                 }
                 else {
@@ -277,11 +272,10 @@ export class AzureUsageBot {
             console.log(filter['filterData']);
             let usageCost: any;
             if (filter['filterData']['queryBy'] === "billingPeriod") {
-                let token = await this.userTokenId.get(step.context, null);
-                usageCost = await callApi(filter['filterData'], token['tokenId']);
+                usageCost = await callApi(filter['filterData'], this.userToken);
                 if (usageCost.hasOwnProperty('error')) {
                     await step.context.sendActivity("Your token was expired");
-                    await this.userTokenId.set(step.context, null);
+                    this.userToken = null;
                     await dialogControl.beginDialog(AUTH_DIALOG);
                 }
                 else{
@@ -363,19 +357,18 @@ export class AzureUsageBot {
 
         console.log("After continue dialog");
         if (context.activity.type === ActivityTypes.Message) {
-            let token: any = await this.userTokenId.get(context, null);
-            if (token === null)
+            if (this.userToken === null)
                 await dialogControl.beginDialog(AUTH_DIALOG);
             // if (config.userDetails.subscriptionId === null)
             //     await dialogControl.beginDialog(subcriptionDialog);
 
             if (context.activity.text === "logout") {
-                await this.userTokenId.set(context, null);
+                this.userToken = null;
                 config.userDetails.subscriptionId = null;
                 let botAdapter: BotFrameworkAdapter = <BotFrameworkAdapter>context.adapter;
                 await botAdapter.signOutUser(context, connection);
                 await context.sendActivity('You have been signed out.');
-                await dialogControl.beginDialog(AUTH_DIALOG);
+                //await dialogControl.beginDialog(AUTH_DIALOG);
             }
             console.log("inside msg");
             console.log("dialog msg", context.responded);
@@ -399,6 +392,7 @@ export class AzureUsageBot {
                         filterData = FilterForLuisData(getLuisData);
                         console.log(filterData);
                         filter = await this.filterForPrompt.get(context, {});
+                        console.log("initial ",filter);
                         filter.filterData = filterData;
                         await this.filterForPrompt.set(context, filter);
                         if (filterData['resources'] === null) {
@@ -422,11 +416,10 @@ export class AzureUsageBot {
                             //         break;
                             //     }
                             // }
-                            let token = await this.userTokenId.get(context, null);
-                            usageCost = await callApi(filterData, token['tokenId']);
+                            
+                            usageCost = await callApi(filterData, this.userToken);
                             if (usageCost.hasOwnProperty('error')) {
                                 await context.sendActivity("Your token was expired");
-                                await this.userTokenId.set(context, null);
                                 await dialogControl.beginDialog(AUTH_DIALOG);
                             }
                             else {
@@ -452,11 +445,9 @@ export class AzureUsageBot {
                             await dialogControl.beginDialog(promptForBreakDown);
                             break;
                         }
-                        let token = await this.userTokenId.get(context, null);
-                        usageCost = await callApi(filterData, token['tokenId']);
+                        usageCost = await callApi(filterData, this.userToken);
                         if (usageCost.hasOwnProperty('error')) {
                             await context.sendActivity("Your token was expired");
-                            await this.userTokenId.set(context, null);
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
                         else {
@@ -482,11 +473,9 @@ export class AzureUsageBot {
                         //         break;
                         //     }
                         // }
-                        token = await this.userTokenId.get(context, null);
-                        usageCost = await callApi(filterData, token['tokenId']);
+                        usageCost = await callApi(filterData, this.userToken);
                         if (usageCost.hasOwnProperty('error')) {
                             await context.sendActivity("Your token was expired");
-                            await this.userTokenId.set(context, null);
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
                         else {
@@ -506,11 +495,9 @@ export class AzureUsageBot {
                     case billingPeriod:
                         filterData = FilterForLuisData(getLuisData);
                         console.log(filterData);
-                        token = await this.userTokenId.get(context, null);
-                        usageCost = await callApi(filterData, token['tokenId']);
+                        usageCost = await callApi(filterData, this.userToken);
                         if (billingDates.hasOwnProperty('error')) {
                             await context.sendActivity("Your token was expired");
-                            await this.userTokenId.set(context, null);
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
                         await context.sendActivity("Here is your recent billing period dates");
@@ -528,10 +515,9 @@ export class AzureUsageBot {
         else if (context.activity.type === ActivityTypes.ConversationUpdate &&
             context.activity.recipient.id !== context.activity.membersAdded[0].id) {
             await context.sendActivity('hai');
-            let token: any = await this.userTokenId.get(context, null);
-            if (token === null)
+            if (this.userToken === null) {
                 await dialogControl.beginDialog(AUTH_DIALOG);
-
+            }
             else {
                 // await context.sendActivity({ attachments: [heroCardObject.HeroCardForWelcomeMessage()] });
                 await dialogControl.beginDialog(welcomeMessage);
