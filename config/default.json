@@ -9,7 +9,7 @@
         "subscriptionId":null
     },
     "serverconf":{
-        "port":3000
+        "port":6000
     },
     "Resources":{
         "ResourceGroup":"resourceGroup",
