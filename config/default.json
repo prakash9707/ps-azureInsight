@@ -6,8 +6,7 @@
         "endPointKey":"27235cc25364488d89c95ce00163eec1"
     },
     "userDetails":{
-        "subscriptionId":null,
-        "userToken":null
+        "subscriptionId":null
     },
     "serverconf":{
         "port":3000

@@ -54,7 +54,7 @@ export class AzureUsageDetails {
 
     }
 
-    getAzureUsageDetails(currentUrl: string) {
+    getAzureUsageDetails(currentUrl: string, userToken : string) {
         // try {
         //     return new Promise(function (resolve, reject) {
 
@@ -91,7 +91,7 @@ export class AzureUsageDetails {
                 request.get({
                     url: currentUrl,
                     headers: {
-                        "Authorization": "Bearer " + config.userDetails.userToken
+                        "Authorization": "Bearer " + userToken
                     }
                 }, function (err, response, body) {
                     if (err)

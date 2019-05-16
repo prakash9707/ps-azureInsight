@@ -1,6 +1,6 @@
 import { TurnContext, ActivityTypes, CardFactory, ConversationState, UserState, BotFrameworkAdapter } from "botbuilder";
 import { ChoicePrompt, DialogSet, WaterfallDialog, OAuthPrompt, DateTimePrompt, ConfirmPrompt } from "botbuilder-dialogs";
-import { getLuisIntent } from "./GetLuisIntent"; 
+import { getLuisIntent } from "./GetLuisIntent";
 import { FilterForLuisData } from "../Services/FilterTheLuis";
 import { callApi } from "../Services/callapi";
 // import { designChartWithAzureData } from "./Chart";
@@ -57,6 +57,7 @@ export class AzureUsageBot {
     dialogState: any;
     filterForPrompt: any;
     userCost: any;
+    userTokenId: any
 
 
     constructor(conversationState: ConversationState, userState: UserState) {
@@ -65,6 +66,7 @@ export class AzureUsageBot {
         this.dialogState = this.conversationState.createProperty(dialogStateProperty);
         this.filterForPrompt = this.userState.createProperty("createFilter");
         this.userCost = this.userState.createProperty("userCost");
+        this.userTokenId = this.userState.createProperty("userToken");
         //  this.userLoginToken = this.userState.createProperty("userLogin");
 
         this.dialogs = new DialogSet(this.dialogState);
@@ -118,13 +120,14 @@ export class AzureUsageBot {
 
     async askForSubcription(step: any) {
         let subscriptionList = [];
-        let azureSubscription = await azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01');
-        let totalSubscription : number = azureSubscription['value'].length;
-        if (totalSubscription === 0){
+        let token = await this.userTokenId.get(step.context, null);
+        let azureSubscription = await azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01', token['tokenId']);
+        let totalSubscription: number = azureSubscription['value'].length;
+        if (totalSubscription === 0) {
             await step.context.sendActivity('You do not have any active subscription');
             await step.context.sendActivity('Without any active subscription you are not able to proceed further');
             config.userDetails.userToken = null;
-            let botAdapter : BotFrameworkAdapter = <BotFrameworkAdapter>step.context.adapter;
+            let botAdapter: BotFrameworkAdapter = <BotFrameworkAdapter>step.context.adapter;
             await botAdapter.signOutUser(step.context, connection);
             return await step.endDialog();
         }
@@ -138,10 +141,9 @@ export class AzureUsageBot {
         config.userDetails.subscriptionId = step.result;
         let dialogControl: any = await this.dialogs.createContext(step.context);
         await dialogControl.beginDialog(welcomeMessage);
-        
+
     }
     async oauthPrompt(step: any) {
-        console.log("coming");
         return await step.prompt(OAUTH_PROMPT);
     }
 
@@ -154,17 +156,21 @@ export class AzureUsageBot {
         console.log("loginResults");
 
         let tokenResponse = step.result;
-        console.log(tokenResponse);
         if (tokenResponse) {
             /**
              * With this token response get the user details with microsoft graph api
              * After collecting the user detail give the message to the bot
              * Then check with the database to know whether the user is valid or not
              */
+            let tempToken: any = {};
+            console.log(tempToken);
+            tempToken.tokenId = tokenResponse['token'];
+            await this.userTokenId.set(step.context, tempToken);
+            console.log(await this.userTokenId.set(step.context, tempToken));
             const claims: any = jwtDecode(tokenResponse['token']);
             config.userDetails.userToken = tokenResponse['token'];
             await step.context.sendActivity('You are now logged in sucessfully.');
-            await step.context.sendActivity(`Hi ${claims['email']}`);
+            await step.context.sendActivity(`Hi ${claims['name']}`);
             let dialogControl: any = await this.dialogs.createContext(step.context);
             await dialogControl.beginDialog(subcriptionDialog);
 
@@ -200,40 +206,41 @@ export class AzureUsageBot {
             //         await step.context.sendActivity('No data was found');
             //     }
             // }
-            let usageCost: any = await callApi(filter['filterData']);
+            let token = await this.userTokenId.get(step.context, null);
+            let usageCost = await callApi(filter['filterData'], token['tokenId']);
             if (usageCost.hasOwnProperty('error')) {
-                config.userDetails.userToken = null;
+                await this.userTokenId.set(step.context, null);
                 await step.context.sendActivity("Your token was expired");
                 await dialogControl.beginDialog(AUTH_DIALOG);
             }
             else {
                 let tempCost = await this.userCost.get(step.context, {});
                 tempCost.cost = usageCost;
-                console.log("usagecost",usageCost);
+                console.log("usagecost", usageCost);
                 await this.userCost.set(step.context, tempCost);
-                if (step.result.value === "resourceGroup"){
-                if (usageCost['resourceGroup']['keys'].length > 0) {
+                if (step.result.value === "resourceGroup") {
+                    if (usageCost['resourceGroup']['keys'].length > 0) {
 
-                    let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
-                    await this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
+                        let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost['resourceGroup'], filter['filterData'].resources, usageCost['resourceGroup']['keys'].length);
+                        await this.createApativeCard(step.context, cardBody, usageCost['resourceGroup']['usageDate']);
 
-                    await dialogControl.beginDialog(breakDownForCost);
+                        await dialogControl.beginDialog(breakDownForCost);
+                    }
+                    else
+                        await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
                 }
-                else
-                    await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
-            }
-        
-        else{
-            if (usageCost['keys'].length > 0){
-                let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost, filter['filterData'].resources, usageCost['keys'].length);
-                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
-            }
-            else
-                    await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
-        
 
-        }
-    }
+                else {
+                    if (usageCost['keys'].length > 0) {
+                        let cardBody: JSON = adaptiveCardObject.AdaptiveCardForResources(usageCost, filter['filterData'].resources, usageCost['keys'].length);
+                        await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                    }
+                    else
+                        await step.context.sendActivity('Sorry no matched data was found or it may not cross even a rupee');
+
+
+                }
+            }
         }
 
     }
@@ -243,28 +250,45 @@ export class AzureUsageBot {
     }
 
     async getBreakDown(step: any) {
+        const dialogControl = await this.dialogs.createContext(step.context);
         if (step.result.value === "dates") {
             let filter: any = await this.filterForPrompt.get(step.context, {});
             filter['filterData'].breakDown = step.result.value;
             console.log(filter['filterData']);
             let usageCost: any;
             if (filter['filterData']['queryBy'] === "billingPeriod") {
-                usageCost = await callApi(filter['filterData']);
-                console.log("dates ",usageCost);
-                let cardBody: JSON = adaptiveCardObject.DatesBreakdown(usageCost);
-                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);     
+                let token = await this.userTokenId.get(step.context, null);
+                usageCost = await callApi(filter['filterData'], token['tokenId']);
+                if (usageCost.hasOwnProperty('error')) {
+                    await step.context.sendActivity("Your token was expired");
+                    await this.userTokenId(step.context, null);
+                    await dialogControl.beginDialog(AUTH_DIALOG);
+                }
+                else {
+                    console.log("dates ", usageCost);
+                    let cardBody: JSON = adaptiveCardObject.DatesBreakdown(usageCost);
+                    await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                }
             }
         }
-        else{
+        else {
             let filter: any = await this.filterForPrompt.get(step.context, {});
             filter['filterData'].breakDown = step.result.value;
             console.log(filter['filterData']);
             let usageCost: any;
             if (filter['filterData']['queryBy'] === "billingPeriod") {
-                usageCost = await callApi(filter['filterData']);
-                console.log("resource type data ",usageCost);
+                let token = await this.userTokenId.get(step.context, null);
+                usageCost = await callApi(filter['filterData'], token['tokenId']);
+                if (usageCost.hasOwnProperty('error')) {
+                    await step.context.sendActivity("Your token was expired");
+                    await this.userTokenId.set(step.context, null);
+                    await dialogControl.beginDialog(AUTH_DIALOG);
+                }
+                else{
+                console.log("resource type data ", usageCost);
                 let cardBody: JSON = adaptiveCardObject.resourcetypeData(usageCost);
-                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);     
+                await this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                }
             }
         }
     }
@@ -299,7 +323,7 @@ export class AzureUsageBot {
     }
 
 
-    
+
 
 
 
@@ -339,14 +363,14 @@ export class AzureUsageBot {
 
         console.log("After continue dialog");
         if (context.activity.type === ActivityTypes.Message) {
-            if (config.userDetails.userToken === null) {
+            let token: any = await this.userTokenId.get(context, null);
+            if (token === null)
                 await dialogControl.beginDialog(AUTH_DIALOG);
-            }
             // if (config.userDetails.subscriptionId === null)
             //     await dialogControl.beginDialog(subcriptionDialog);
 
             if (context.activity.text === "logout") {
-                config.userDetails.userToken = null;
+                await this.userTokenId.set(context, null);
                 config.userDetails.subscriptionId = null;
                 let botAdapter: BotFrameworkAdapter = <BotFrameworkAdapter>context.adapter;
                 await botAdapter.signOutUser(context, connection);
@@ -398,10 +422,11 @@ export class AzureUsageBot {
                             //         break;
                             //     }
                             // }
-                            usageCost = await callApi(filterData);
+                            let token = await this.userTokenId.get(context, null);
+                            usageCost = await callApi(filterData, token['tokenId']);
                             if (usageCost.hasOwnProperty('error')) {
                                 await context.sendActivity("Your token was expired");
-                                config.userDetails.userToken = null;
+                                await this.userTokenId.set(context, null);
                                 await dialogControl.beginDialog(AUTH_DIALOG);
                             }
                             else {
@@ -427,17 +452,20 @@ export class AzureUsageBot {
                             await dialogControl.beginDialog(promptForBreakDown);
                             break;
                         }
-                        if (filterData['queryBy'] === "billingPeriod") {
-                            usageCost = await callApi(filterData);
+                        let token = await this.userTokenId.get(context, null);
+                        usageCost = await callApi(filterData, token['tokenId']);
+                        if (usageCost.hasOwnProperty('error')) {
+                            await context.sendActivity("Your token was expired");
+                            await this.userTokenId.set(context, null);
+                            await dialogControl.beginDialog(AUTH_DIALOG);
                         }
-                        if (filterData['queryBy'] === "userChoice") {
-                            usageCost = await callApi(filterData);
-                        }
+                        else {
                             if (filterData['breakDown'] === "dates")
                                 cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
                             else if (filterData['breakDown'] === "resourceType")
                                 cardBody = adaptiveCardObject.resourcetypeData(usageCost);
                             await this.createApativeCard(context, cardBody, usageCost['usageDate']);
+                        }
                         break;
                     case trend:
                         filterData = FilterForLuisData(getLuisData);
@@ -454,10 +482,11 @@ export class AzureUsageBot {
                         //         break;
                         //     }
                         // }
-                        usageCost = await callApi(filterData);
+                        token = await this.userTokenId.get(context, null);
+                        usageCost = await callApi(filterData, token['tokenId']);
                         if (usageCost.hasOwnProperty('error')) {
                             await context.sendActivity("Your token was expired");
-                            config.userDetails.userToken = null;
+                            await this.userTokenId.set(context, null);
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
                         else {
@@ -477,10 +506,11 @@ export class AzureUsageBot {
                     case billingPeriod:
                         filterData = FilterForLuisData(getLuisData);
                         console.log(filterData);
-                        billingDates = await callApi(filterData);
+                        token = await this.userTokenId.get(context, null);
+                        usageCost = await callApi(filterData, token['tokenId']);
                         if (billingDates.hasOwnProperty('error')) {
                             await context.sendActivity("Your token was expired");
-                            config.userDetails.userToken = null;
+                            await this.userTokenId.set(context, null);
                             await dialogControl.beginDialog(AUTH_DIALOG);
                         }
                         await context.sendActivity("Here is your recent billing period dates");
@@ -498,9 +528,10 @@ export class AzureUsageBot {
         else if (context.activity.type === ActivityTypes.ConversationUpdate &&
             context.activity.recipient.id !== context.activity.membersAdded[0].id) {
             await context.sendActivity('hai');
-            if (config.userDetails.userToken === null) {
+            let token: any = await this.userTokenId.get(context, null);
+            if (token === null)
                 await dialogControl.beginDialog(AUTH_DIALOG);
-            }
+
             else {
                 // await context.sendActivity({ attachments: [heroCardObject.HeroCardForWelcomeMessage()] });
                 await dialogControl.beginDialog(welcomeMessage);

@@ -36,7 +36,7 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                 if (req.body.filteredData.intent === "trend" && req.body.filteredData.queryBy === "billingPeriod") {
                     url = azuresubs.generateAzureAPI(req.body);
                     logger.info("url  " + url);
-                    subsData = yield azuresubs.getAzureUsageDetails(url);
+                    subsData = yield azuresubs.getAzureUsageDetails(url, req.body.userToken);
                     if (subsData.hasOwnProperty('error')) {
                         res.send(401, subsData);
                     }
@@ -50,7 +50,7 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                 else if (req.body.filteredData.intent === "cost" && req.body.filteredData.queryBy == "billingPeriod") {
                     if (req.body.filteredData.dateRange != "currentPeriod") {
                         url = azuresubs.generateAzureAPI(req.body);
-                        subsData = yield azuresubs.getAzureUsageDetails(url);
+                        subsData = yield azuresubs.getAzureUsageDetails(url, req.body.userToken);
                         if (subsData.hasOwnProperty('error')) {
                             res.send(401, subsData);
                         }
@@ -67,7 +67,7 @@ exports.server.post('/azureData', (req, res, next) => __awaiter(this, void 0, vo
                     url = azuresubs.generateAzureAPI(req.body);
                 }
                 logger.info("API " + url);
-                subsData = yield azuresubs.getAzureUsageDetails(url);
+                subsData = yield azuresubs.getAzureUsageDetails(url, req.body.userToken);
                 if (subsData.hasOwnProperty('error')) {
                     res.send(401, subsData);
                 }

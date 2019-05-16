@@ -3,12 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var requestPromise = require('request-promise');
 var restify = require('./serverconf');
 const logger = require('../logger');
-function callApi(filteredData) {
+function callApi(filteredData, userToken) {
     var options = {
         method: 'POST',
         uri: 'http://localhost:3000/azureData',
         body: {
-            filteredData
+            filteredData,
+            userToken
         },
         json: true
     };

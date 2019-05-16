@@ -1,12 +1,14 @@
 var requestPromise = require('request-promise');
 var restify = require('./serverconf');
 const logger = require('../logger');
-export function callApi(filteredData: any) {
+export function callApi(filteredData: any, userToken : any ) {
     var options : any = {
         method: 'POST',
         uri: 'http://localhost:3000/azureData',
         body: {
-            filteredData
+            filteredData,
+            userToken
+
         },
         json: true
     };

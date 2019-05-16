@@ -50,6 +50,7 @@ class AzureUsageBot {
         this.dialogState = this.conversationState.createProperty(dialogStateProperty);
         this.filterForPrompt = this.userState.createProperty("createFilter");
         this.userCost = this.userState.createProperty("userCost");
+        this.userTokenId = this.userState.createProperty("userToken");
         this.dialogs = new botbuilder_dialogs_1.DialogSet(this.dialogState);
         this.dialogs.add(new botbuilder_dialogs_1.ChoicePrompt(confirmPrompt));
         this.dialogs.add(new botbuilder_dialogs_1.WaterfallDialog(welcomeMessage, [
@@ -81,7 +82,8 @@ class AzureUsageBot {
     askForSubcription(step) {
         return __awaiter(this, void 0, void 0, function* () {
             let subscriptionList = [];
-            let azureSubscription = yield azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01');
+            let token = yield this.userTokenId.get(step.context, null);
+            let azureSubscription = yield azuresubs.getAzureUsageDetails('https://management.azure.com/subscriptions?api-version=2016-06-01', token['tokenId']);
             let totalSubscription = azureSubscription['value'].length;
             if (totalSubscription === 0) {
                 yield step.context.sendActivity('You do not have any active subscription');
@@ -107,7 +109,6 @@ class AzureUsageBot {
     }
     oauthPrompt(step) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("coming");
             return yield step.prompt(OAUTH_PROMPT);
         });
     }
@@ -115,12 +116,16 @@ class AzureUsageBot {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("loginResults");
             let tokenResponse = step.result;
-            console.log(tokenResponse);
             if (tokenResponse) {
+                let tempToken = {};
+                console.log(tempToken);
+                tempToken.tokenId = tokenResponse['token'];
+                yield this.userTokenId.set(step.context, tempToken);
+                console.log(yield this.userTokenId.set(step.context, tempToken));
                 const claims = jwtDecode(tokenResponse['token']);
                 config.userDetails.userToken = tokenResponse['token'];
                 yield step.context.sendActivity('You are now logged in sucessfully.');
-                yield step.context.sendActivity(`Hi ${claims['email']}`);
+                yield step.context.sendActivity(`Hi ${claims['name']}`);
                 let dialogControl = yield this.dialogs.createContext(step.context);
                 yield dialogControl.beginDialog(subcriptionDialog);
             }
@@ -144,9 +149,10 @@ class AzureUsageBot {
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].resources = step.result.value;
                 console.log(filter['filterData']);
-                let usageCost = yield callapi_1.callApi(filter['filterData']);
+                let token = yield this.userTokenId.get(step.context, null);
+                let usageCost = yield callapi_1.callApi(filter['filterData'], token['tokenId']);
                 if (usageCost.hasOwnProperty('error')) {
-                    config.userDetails.userToken = null;
+                    yield this.userTokenId.set(step.context, null);
                     yield step.context.sendActivity("Your token was expired");
                     yield dialogControl.beginDialog(AUTH_DIALOG);
                 }
@@ -183,16 +189,25 @@ class AzureUsageBot {
     }
     getBreakDown(step) {
         return __awaiter(this, void 0, void 0, function* () {
+            const dialogControl = yield this.dialogs.createContext(step.context);
             if (step.result.value === "dates") {
                 let filter = yield this.filterForPrompt.get(step.context, {});
                 filter['filterData'].breakDown = step.result.value;
                 console.log(filter['filterData']);
                 let usageCost;
                 if (filter['filterData']['queryBy'] === "billingPeriod") {
-                    usageCost = yield callapi_1.callApi(filter['filterData']);
-                    console.log("dates ", usageCost);
-                    let cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
-                    yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                    let token = yield this.userTokenId.get(step.context, null);
+                    usageCost = yield callapi_1.callApi(filter['filterData'], token['tokenId']);
+                    if (usageCost.hasOwnProperty('error')) {
+                        yield step.context.sendActivity("Your token was expired");
+                        yield this.userTokenId(step.context, null);
+                        yield dialogControl.beginDialog(AUTH_DIALOG);
+                    }
+                    else {
+                        console.log("dates ", usageCost);
+                        let cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
+                        yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                    }
                 }
             }
             else {
@@ -201,10 +216,18 @@ class AzureUsageBot {
                 console.log(filter['filterData']);
                 let usageCost;
                 if (filter['filterData']['queryBy'] === "billingPeriod") {
-                    usageCost = yield callapi_1.callApi(filter['filterData']);
-                    console.log("resource type data ", usageCost);
-                    let cardBody = adaptiveCardObject.resourcetypeData(usageCost);
-                    yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                    let token = yield this.userTokenId.get(step.context, null);
+                    usageCost = yield callapi_1.callApi(filter['filterData'], token['tokenId']);
+                    if (usageCost.hasOwnProperty('error')) {
+                        yield step.context.sendActivity("Your token was expired");
+                        yield this.userTokenId.set(step.context, null);
+                        yield dialogControl.beginDialog(AUTH_DIALOG);
+                    }
+                    else {
+                        console.log("resource type data ", usageCost);
+                        let cardBody = adaptiveCardObject.resourcetypeData(usageCost);
+                        yield this.createApativeCard(step.context, cardBody, usageCost['usageDate']);
+                    }
                 }
             }
         });
@@ -265,11 +288,11 @@ class AzureUsageBot {
             yield dialogControl.continueDialog();
             console.log("After continue dialog");
             if (context.activity.type === botbuilder_1.ActivityTypes.Message) {
-                if (config.userDetails.userToken === null) {
+                let token = yield this.userTokenId.get(context, null);
+                if (token === null)
                     yield dialogControl.beginDialog(AUTH_DIALOG);
-                }
                 if (context.activity.text === "logout") {
-                    config.userDetails.userToken = null;
+                    yield this.userTokenId.set(context, null);
                     config.userDetails.subscriptionId = null;
                     let botAdapter = context.adapter;
                     yield botAdapter.signOutUser(context, connection);
@@ -305,10 +328,11 @@ class AzureUsageBot {
                                     resources = "resourceGroup";
                                 else
                                     resources = "resourceType";
-                                usageCost = yield callapi_1.callApi(filterData);
+                                let token = yield this.userTokenId.get(context, null);
+                                usageCost = yield callapi_1.callApi(filterData, token['tokenId']);
                                 if (usageCost.hasOwnProperty('error')) {
                                     yield context.sendActivity("Your token was expired");
-                                    config.userDetails.userToken = null;
+                                    yield this.userTokenId.set(context, null);
                                     yield dialogControl.beginDialog(AUTH_DIALOG);
                                 }
                                 else {
@@ -334,25 +358,29 @@ class AzureUsageBot {
                                 yield dialogControl.beginDialog(promptForBreakDown);
                                 break;
                             }
-                            if (filterData['queryBy'] === "billingPeriod") {
-                                usageCost = yield callapi_1.callApi(filterData);
+                            let token = yield this.userTokenId.get(context, null);
+                            usageCost = yield callapi_1.callApi(filterData, token['tokenId']);
+                            if (usageCost.hasOwnProperty('error')) {
+                                yield context.sendActivity("Your token was expired");
+                                yield this.userTokenId.set(context, null);
+                                yield dialogControl.beginDialog(AUTH_DIALOG);
                             }
-                            if (filterData['queryBy'] === "userChoice") {
-                                usageCost = yield callapi_1.callApi(filterData);
+                            else {
+                                if (filterData['breakDown'] === "dates")
+                                    cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
+                                else if (filterData['breakDown'] === "resourceType")
+                                    cardBody = adaptiveCardObject.resourcetypeData(usageCost);
+                                yield this.createApativeCard(context, cardBody, usageCost['usageDate']);
                             }
-                            if (filterData['breakDown'] === "dates")
-                                cardBody = adaptiveCardObject.DatesBreakdown(usageCost);
-                            else if (filterData['breakDown'] === "resourceType")
-                                cardBody = adaptiveCardObject.resourcetypeData(usageCost);
-                            yield this.createApativeCard(context, cardBody, usageCost['usageDate']);
                             break;
                         case trend:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
-                            usageCost = yield callapi_1.callApi(filterData);
+                            token = yield this.userTokenId.get(context, null);
+                            usageCost = yield callapi_1.callApi(filterData, token['tokenId']);
                             if (usageCost.hasOwnProperty('error')) {
                                 yield context.sendActivity("Your token was expired");
-                                config.userDetails.userToken = null;
+                                yield this.userTokenId.set(context, null);
                                 yield dialogControl.beginDialog(AUTH_DIALOG);
                             }
                             else {
@@ -372,10 +400,11 @@ class AzureUsageBot {
                         case billingPeriod:
                             filterData = FilterTheLuis_1.FilterForLuisData(getLuisData);
                             console.log(filterData);
-                            billingDates = yield callapi_1.callApi(filterData);
+                            token = yield this.userTokenId.get(context, null);
+                            usageCost = yield callapi_1.callApi(filterData, token['tokenId']);
                             if (billingDates.hasOwnProperty('error')) {
                                 yield context.sendActivity("Your token was expired");
-                                config.userDetails.userToken = null;
+                                yield this.userTokenId.set(context, null);
                                 yield dialogControl.beginDialog(AUTH_DIALOG);
                             }
                             yield context.sendActivity("Here is your recent billing period dates");
@@ -390,9 +419,9 @@ class AzureUsageBot {
             else if (context.activity.type === botbuilder_1.ActivityTypes.ConversationUpdate &&
                 context.activity.recipient.id !== context.activity.membersAdded[0].id) {
                 yield context.sendActivity('hai');
-                if (config.userDetails.userToken === null) {
+                let token = yield this.userTokenId.get(context, null);
+                if (token === null)
                     yield dialogControl.beginDialog(AUTH_DIALOG);
-                }
                 else {
                     yield dialogControl.beginDialog(welcomeMessage);
                 }

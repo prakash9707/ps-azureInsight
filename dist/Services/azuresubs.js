@@ -47,13 +47,13 @@ class AzureUsageDetails {
             logger.error(e + " Occurs on generating the azure API");
         }
     }
-    getAzureUsageDetails(currentUrl) {
+    getAzureUsageDetails(currentUrl, userToken) {
         try {
             return new Promise((resolve, reject) => {
                 request.get({
                     url: currentUrl,
                     headers: {
-                        "Authorization": "Bearer " + config.userDetails.userToken
+                        "Authorization": "Bearer " + userToken
                     }
                 }, function (err, response, body) {
                     if (err)

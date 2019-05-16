@@ -22,6 +22,7 @@ server.use(restify.plugins.bodyParser());
 
 server.post('/azureData', async (req, res, next) => { // defining what your API needs to do with the input....
 
+
     if (!req.body) {
         res.send(400, 'Please give any query');
         return next(new restifyErrors.BadRequestError());
@@ -32,7 +33,7 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                 if (req.body.filteredData.intent === "trend" && req.body.filteredData.queryBy === "billingPeriod") {
                     url = azuresubs.generateAzureAPI(req.body);
                     logger.info("url  " + url);
-                    subsData = await azuresubs.getAzureUsageDetails(url);
+                    subsData = await azuresubs.getAzureUsageDetails(url,req.body.userToken);
                     if (subsData.hasOwnProperty('error')){
                         res.send(401, subsData);
                     }
@@ -48,7 +49,7 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                     // let currentMonthDate = `${moment().startOf('month').format("YYYY-MM-DD")} to ${moment().endOf('month').format("YYYY-MM-DD")}`;
                     if (req.body.filteredData.dateRange != "currentPeriod") {
                         url = azuresubs.generateAzureAPI(req.body);
-                        subsData = await azuresubs.getAzureUsageDetails(url);
+                        subsData = await azuresubs.getAzureUsageDetails(url,req.body.userToken);
                         if (subsData.hasOwnProperty('error')){
                             res.send(401, subsData);
                         }
@@ -68,7 +69,7 @@ server.post('/azureData', async (req, res, next) => { // defining what your API 
                 }
                 
                 logger.info("API "+ url);
-                subsData = await azuresubs.getAzureUsageDetails(url);
+                subsData = await azuresubs.getAzureUsageDetails(url,req.body.userToken);
                 if (subsData.hasOwnProperty('error')){
                     res.send(401, subsData);
                 }

@@ -20,6 +20,8 @@ function FilterForLuisData(getLuisData) {
                 "breakDown": null
             };
             filterLuis["intent"] = getLuisData['topScoringIntent']['intent'];
+            let endDateSub = false;
+            let monthArray = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
             for (let idx = 0; idx < entityLength; idx++) {
                 if (getLuisData['entities'][idx]['type'] == resources)
                     filterLuis['resources'] = getLuisData['entities'][idx].resolution.values[0];

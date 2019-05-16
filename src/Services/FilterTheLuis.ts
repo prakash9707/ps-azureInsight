@@ -19,16 +19,22 @@ export function FilterForLuisData(getLuisData: any): any {
             "queryBy": null,
             "dateRange": null,
             "intent": null,
-            "breakDown":null
+            "breakDown": null
          };
          filterLuis["intent"] = getLuisData['topScoringIntent']['intent'];
+         let endDateSub: boolean = false;
+         let monthArray: Array<string> = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
          for (let idx: number = 0; idx < entityLength; idx++) {
 
             // if (getLuisData['entities'][idx]['type'] == number && getLuisData['entities'][idx].resolution.value < 100)
             //    filterLuis['number'] = getLuisData['entities'][idx].resolution.value;
 
-             if (getLuisData['entities'][idx]['type'] == resources)
+            if (getLuisData['entities'][idx]['type'] == resources)
                filterLuis['resources'] = getLuisData['entities'][idx].resolution.values[0];
+
+            // else if ((getLuisData['entites'][idx]['entity']).indexOf(monthArray))
+            //    endDateSub = true;
+
             else if (getLuisData['entities'][idx]['type'] == resourceGroupNames) {
                filterLuis.filter.push({
                   "category": "resourceGroup",
@@ -68,6 +74,7 @@ export function FilterForLuisData(getLuisData: any): any {
                /*
                subtracting one date here because the luis is giving one date more than the user want....
                */
+               //if (endDateSub)
                endDate = endDate.subtract(1, 'day').format("YYYY-MM-DD");
                filterLuis['queryBy'] = "userChoice";
 
@@ -91,45 +98,45 @@ export function FilterForLuisData(getLuisData: any): any {
          }
 
 
-         if (filterLuis['intent'] == "trend"){
-          if  (filterLuis['queryBy'] === "userChoice") {
+         if (filterLuis['intent'] == "trend") {
+            if (filterLuis['queryBy'] === "userChoice") {
 
-            if (startDate !== null && endDate !== null) {
-               filterLuis['resources'] = "resourceGroup";
-               startDate = moment(startDate, 'YYYY-MM-DD');
-               endDate = moment(endDate, 'YYYY-MM-DD');
-               let duration = moment.duration(endDate.diff(startDate));
-               let newStartDate: any = moment(startDate, 'YYYY-MM-DD');
-               let days = duration.asDays();
-               if (days >= 27 && days <= 31) {
-                  newStartDate = newStartDate.subtract(1, 'month');
-               }
-               else if (days === 7) {
-                  newStartDate = newStartDate.subtract(1, 'week');
-               }
-               else if (days === 0) {
-                  newStartDate = newStartDate.subtract(1, 'day');
-               }
-               else {
-                  newStartDate = newStartDate.subtract(days, 'day');
+               if (startDate !== null && endDate !== null) {
+                  filterLuis['resources'] = "resourceGroup";
+                  startDate = moment(startDate, 'YYYY-MM-DD');
+                  endDate = moment(endDate, 'YYYY-MM-DD');
+                  let duration = moment.duration(endDate.diff(startDate));
+                  let newStartDate: any = moment(startDate, 'YYYY-MM-DD');
+                  let days = duration.asDays();
+                  if (days >= 27 && days <= 31) {
+                     newStartDate = newStartDate.subtract(1, 'month');
+                  }
+                  else if (days === 7) {
+                     newStartDate = newStartDate.subtract(1, 'week');
+                  }
+                  else if (days === 0) {
+                     newStartDate = newStartDate.subtract(1, 'day');
+                  }
+                  else {
+                     newStartDate = newStartDate.subtract(days, 'day');
+                  }
+
+                  filterLuis['midRange'] = startDate.format("YYYY-MM-DD");
+                  filterLuis['dateRange'] = `${newStartDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
                }
 
-               filterLuis['midRange'] = startDate.format("YYYY-MM-DD");
-               filterLuis['dateRange'] = `${newStartDate.format("YYYY-MM-DD")} to ${endDate.format("YYYY-MM-DD")}`;
             }
-            
+            else {
+               filterLuis['queryBy'] = "billingPeriod";
+               filterLuis['dateRange'] = "currentPeriod";
+               filterLuis['resources'] = "resourceGroup";
+               if (startDate !== null && endDate !== null)
+                  filterLuis['dateRange'] = `${startDate} to ${endDate}`;
+               else
+                  filterLuis['dateRange'] = `${moment().startOf('month').format("YYYY-MM-DD")} to ${moment().endOf("month").format("YYYY-MM-DD")}`;
+            }
          }
-         else {
-            filterLuis['queryBy'] = "billingPeriod";
-             filterLuis['dateRange'] = "currentPeriod";
-            filterLuis['resources'] = "resourceGroup";
-            if (startDate !== null && endDate !== null)
-               filterLuis['dateRange'] = `${startDate} to ${endDate}`;
-            else
-               filterLuis['dateRange'] = `${moment().startOf('month').format("YYYY-MM-DD")} to ${moment().endOf("month").format("YYYY-MM-DD")}`;
-         }
-      }
-      
+
          return filterLuis;
       }
       catch (e) {
